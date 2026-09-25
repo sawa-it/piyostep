@@ -25,6 +25,8 @@ final class PiyoStepUITests: XCTestCase {
         nameField.tap()
         nameField.typeText("ゆい")
 
+        // 横向きではキーボードが画面の半分以上を覆う。閉じないと「つぎへ」に届かない。
+        app.dismissKeyboardIfNeeded()
         app.tappable(A11yID.onboardingNext).waitAndTap()
         app.tappable("\(A11yID.onboardingAgeOption)5").waitAndTap()
         app.tappable(A11yID.onboardingNext).waitAndTap()

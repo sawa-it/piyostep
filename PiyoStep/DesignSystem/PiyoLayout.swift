@@ -91,3 +91,34 @@ extension View {
         modifier(PiyoFontModifier(size: size, weight: weight))
     }
 }
+
+// MARK: - キーボード
+
+/// 文字入力中に、キーボードの上へ「かんりょう」を出す。
+///
+/// 横向きではキーボードが画面の半分以上を覆い、その下のボタンに手が届かない。
+/// 閉じる手段を必ず用意しておく。
+struct KeyboardDoneButton: ViewModifier {
+    @FocusState.Binding var isFocused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .focused($isFocused)
+            .submitLabel(.done)
+            .onSubmit { isFocused = false }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("かんりょう") { isFocused = false }
+                        .accessibilityIdentifier(A11yID.keyboardDone)
+                }
+            }
+    }
+}
+
+extension View {
+    /// 入力欄に付けると、キーボードの上に「かんりょう」が出る。
+    func keyboardDoneButton(isFocused: FocusState<Bool>.Binding) -> some View {
+        modifier(KeyboardDoneButton(isFocused: isFocused))
+    }
+}

@@ -31,12 +31,16 @@ struct ParentSettingsView: View {
 
 private struct ChildSettingsSection: View {
     @Bindable var model: SettingsViewModel
+    @FocusState private var isNameFocused: Bool
 
     var body: some View {
         Section {
             TextField("なまえ", text: $model.childName)
                 .accessibilityIdentifier(A11yID.settingsChildName)
-                .onSubmit { model.apply() }
+                .keyboardDoneButton(isFocused: $isNameFocused)
+                .onChange(of: isNameFocused) { _, focused in
+                    if !focused { model.apply() }
+                }
 
             Picker("年齢", selection: $model.childAge) {
                 ForEach(3 ... 6, id: \.self) { age in
@@ -61,6 +65,7 @@ private struct ChildSettingsSection: View {
 /// アプリの呼び名と、じぶんの アイコン。
 private struct AppearanceSettingsSection: View {
     @Bindable var model: SettingsViewModel
+    @FocusState private var isAppNameFocused: Bool
     @State private var photoItem: PhotosPickerItem?
     @State private var isImporting = false
 
@@ -68,7 +73,10 @@ private struct AppearanceSettingsSection: View {
         Section {
             TextField(AppNaming.defaultName, text: $model.draft.appDisplayName)
                 .accessibilityIdentifier(A11yID.settingsAppName)
-                .onSubmit { model.apply() }
+                .keyboardDoneButton(isFocused: $isAppNameFocused)
+                .onChange(of: isAppNameFocused) { _, focused in
+                    if !focused { model.apply() }
+                }
 
             if let suggestion = model.appNameSuggestion {
                 Button("「\(suggestion)」に する") {

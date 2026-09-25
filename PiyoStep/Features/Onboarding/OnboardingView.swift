@@ -5,6 +5,7 @@ import PiyoCore
 struct OnboardingView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.piyoLayout) private var layout
+    @FocusState private var isNameFocused: Bool
 
     @State private var step = 0
     @State private var nickname = ""
@@ -24,31 +25,54 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             PiyoBackground(tint: PiyoTheme.primary)
-            VStack(spacing: 28) {
-                CharacterArtView(
-                    character: CharacterCatalog.character(id: characterID) ?? CharacterCatalog.fallback,
-                    mood: .happy,
-                    size: 150
-                )
-
-                switch step {
-                case 0: nameStep
-                case 1: ageStep
-                default: characterStep
-                }
-            }
-            .padding(24)
-            .piyoContentWidth(layout)
+            stepLayout
+                .padding(CGFloat(layout.sized(20)))
+                .piyoContentWidth(layout)
         }
         .onAppear {
             environment.speak("なまえを おしえてね")
         }
     }
 
+    /// 横向きは、キャラクターを左に置いて縦を空ける。
+    /// 縦に積むと、キーボードが出たときに「つぎへ」がその下に隠れてしまう。
+    @ViewBuilder
+    private var stepLayout: some View {
+        if layout.shape.isLandscape {
+            HStack(spacing: CGFloat(layout.spacing)) {
+                buddy
+                ScrollView { stepContent.padding(.vertical, 4) }
+                    .frame(maxWidth: .infinity)
+            }
+        } else {
+            VStack(spacing: CGFloat(layout.sized(24))) {
+                buddy
+                stepContent
+            }
+        }
+    }
+
+    private var buddy: some View {
+        CharacterArtView(
+            character: CharacterCatalog.character(id: characterID) ?? CharacterCatalog.fallback,
+            mood: .happy,
+            size: CGFloat(layout.artSized(150))
+        )
+    }
+
+    @ViewBuilder
+    private var stepContent: some View {
+        switch step {
+        case 0: nameStep
+        case 1: ageStep
+        default: characterStep
+        }
+    }
+
     // MARK: - ステップ
 
     private var nameStep: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: CGFloat(layout.sized(18))) {
             Text("なまえは なにかな？")
                 .piyoFont(.title)
                 .foregroundStyle(PiyoTheme.text)
@@ -64,6 +88,7 @@ struct OnboardingView: View {
                         .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
                 )
                 .accessibilityIdentifier(A11yID.onboardingNameField)
+                .keyboardDoneButton(isFocused: $isNameFocused)
 
             BigButton(color: PiyoTheme.primary, action: goToAgeStep) {
                 Text("つぎへ")

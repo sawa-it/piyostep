@@ -59,13 +59,19 @@ extension XCUIElement {
     func scrollIntoView(maxAttempts: Int = 4) -> Bool {
         if isHittable { return true }
         let app = XCUIApplication()
-        for _ in 0 ..< maxAttempts {
-            app.scrollContent(up: true)
-            if isHittable { return true }
-        }
-        for _ in 0 ..< maxAttempts * 2 {
-            app.scrollContent(up: false)
-            if isHittable { return true }
+
+        // まずキーボードをどける。届かない原因はたいていこれ。
+        if app.dismissKeyboardIfNeeded(), isHittable { return true }
+
+        for container in app.scrollContainers {
+            for _ in 0 ..< maxAttempts {
+                app.scrollContent(up: true, in: container)
+                if isHittable { return true }
+            }
+            for _ in 0 ..< maxAttempts * 2 {
+                app.scrollContent(up: false, in: container)
+                if isHittable { return true }
+            }
         }
         return isHittable
     }
@@ -80,13 +86,16 @@ extension XCUIElement {
     func scrollUntilExists(maxAttempts: Int = 8) -> Bool {
         if waitForExistence(timeout: 2) { return true }
         let app = XCUIApplication()
-        for _ in 0 ..< maxAttempts {
-            app.scrollContent(up: true)
-            if exists { return true }
-        }
-        for _ in 0 ..< maxAttempts {
-            app.scrollContent(up: false)
-            if exists { return true }
+        app.dismissKeyboardIfNeeded()
+        for container in app.scrollContainers {
+            for _ in 0 ..< maxAttempts {
+                app.scrollContent(up: true, in: container)
+                if exists { return true }
+            }
+            for _ in 0 ..< maxAttempts {
+                app.scrollContent(up: false, in: container)
+                if exists { return true }
+            }
         }
         return exists
     }
@@ -105,23 +114,43 @@ extension XCUIApplication {
         return button.exists ? button : element(id: id)
     }
 
-    /// スクロールできる入れ物（ScrollView / Form）を探す。
-    var scrollContainer: XCUIElement {
-        for candidate in [scrollViews.firstMatch, collectionViews.firstMatch, tables.firstMatch]
-        where candidate.exists {
-            return candidate
+    /// スクロールできそうな入れ物を、手前にあるものから順に返す。
+    ///
+    /// 画面に複数の入れ物がある（保護者エリアはタブごとに持つ）ので、
+    /// 1 つに決め打ちすると、見えていないほうを動かして空振りする。
+    var scrollContainers: [XCUIElement] {
+        var result: [XCUIElement] = []
+        for query in [collectionViews, tables, scrollViews] {
+            for element in query.allElementsBoundByIndex
+            where element.exists && element.isHittable {
+                result.append(element)
+            }
         }
-        return self
+        result.append(self)
+        return result
     }
 
     /// 入れ物の左端をドラッグしてスクロールする。
     /// 中央から引くと、時計の針・なぞり書き・スライダーを操作してしまう。
-    func scrollContent(up: Bool) {
-        let container = scrollContainer
-        guard container.exists else { return }
-        let from = container.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: up ? 0.85 : 0.2))
-        let to = container.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: up ? 0.2 : 0.85))
+    func scrollContent(up: Bool, in container: XCUIElement? = nil) {
+        let target = container ?? scrollContainers.first ?? self
+        guard target.exists else { return }
+        let from = target.coordinate(withNormalizedOffset: CGVector(dx: 0.06, dy: up ? 0.85 : 0.2))
+        let to = target.coordinate(withNormalizedOffset: CGVector(dx: 0.06, dy: up ? 0.2 : 0.85))
         from.press(forDuration: 0.05, thenDragTo: to)
+    }
+
+    /// キーボードが出ていると、その下のボタンには手が届かない。
+    /// 横向きではキーボードが画面の半分以上を覆うので、必ず閉じてから触る。
+    @discardableResult
+    func dismissKeyboardIfNeeded() -> Bool {
+        guard keyboards.element.exists else { return false }
+        let done = buttons[A11yID.keyboardDone]
+        if done.exists && done.isHittable {
+            done.tap()
+            return true
+        }
+        return false
     }
 
     /// 失敗メッセージに添える画面の要約。

@@ -25,7 +25,7 @@ WRAPPERS_WITH_DEFAULT = ("@State", "@Environment", "@FocusState", "@Namespace", 
 struct_re = re.compile(r"^(?:public |private )?struct ([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^{]+)\{", re.M)
 # Stored properties only: computed ones end the line with `{`.
 property_re = re.compile(
-    r"^\s{4}(@[A-Za-z]+(?:\([^)]*\))?\s+)?(?:private\s+|public\s+)?(let|var)\s+"
+    r"^\s{4}(@[A-Za-z]+(?:\.[A-Za-z]+)*(?:\([^)]*\))?\s+)?(?:private\s+|public\s+)?(let|var)\s+"
     r"([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^\n={]+?)(\s*=\s*([^\n]+))?\s*$",
     re.M,
 )
@@ -72,7 +72,11 @@ def collect_views() -> dict[str, list[tuple[str, bool]]]:
                 label = prop.group(3)
                 type_text = prop.group(4).strip()
                 default = prop.group(5)
-                if wrapper.startswith(WRAPPERS_WITH_DEFAULT):
+                # `@FocusState.Binding` は `@FocusState` と違って自前で値を持たず、
+                # 呼び出し側から渡してもらう必要がある。
+                if wrapper.startswith(WRAPPERS_WITH_DEFAULT) and not wrapper.startswith(
+                    tuple(f"{name}.Binding" for name in WRAPPERS_WITH_DEFAULT)
+                ):
                     continue
                 if "private" in prop.group(0) and default:
                     continue

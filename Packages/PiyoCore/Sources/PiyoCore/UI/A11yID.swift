@@ -100,6 +100,10 @@ public enum A11yID {
     public static let settingsAvatarPick = "settings.avatar.pick"
     public static let settingsAvatarClear = "settings.avatar.clear"
 
+    /// 文字入力中にキーボードの上へ出す「かんりょう」。
+    /// 横向きではキーボードが画面の大半を覆うので、閉じる手段が要る。
+    public static let keyboardDone = "keyboard.done"
+
     // 広告
     public static let launchAd = "ad.launch"
     public static let launchAdClose = "ad.launch.close"
