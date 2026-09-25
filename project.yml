@@ -1,0 +1,91 @@
+# XcodeGen 用のスペック。
+# PiyoStep.xcodeproj は生成済みで、そのまま Xcode 16 で開けます。
+# プロジェクトファイルを作り直したい場合のみ `xcodegen generate` を使ってください。
+
+name: PiyoStep
+options:
+  bundleIdPrefix: jp.piyostep
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: ja
+  createIntermediateGroups: true
+  minimumXcodeGenVersion: "2.40.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    TARGETED_DEVICE_FAMILY: "1,2"
+
+packages:
+  PiyoCore:
+    path: Packages/PiyoCore
+
+targets:
+  PiyoStep:
+    type: application
+    platform: iOS
+    sources:
+      - path: PiyoStep
+    dependencies:
+      - package: PiyoCore
+        product: PiyoCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        PRODUCT_BUNDLE_IDENTIFIER: jp.piyostep.app
+        ENABLE_PREVIEWS: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "ぴよステップ"
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "こえで こたえる ために マイクを つかいます。ろくおんした おとは この たんまつの なかだけで つかわれ、そとには おくられません。"
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "こえで こたえた ことばを ききとる ために つかいます。ききとった ことばは この アプリの なかだけで つかわれます。"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIUserInterfaceStyle: Light
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+
+  PiyoStepTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: PiyoStepTests
+    dependencies:
+      - target: PiyoStep
+      - package: PiyoCore
+        product: PiyoCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: jp.piyostep.app.tests
+
+  PiyoStepUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: PiyoStepUITests
+    dependencies:
+      - target: PiyoStep
+      - package: PiyoCore
+        product: PiyoCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: jp.piyostep.app.uitests
+        TEST_TARGET_NAME: PiyoStep
+
+schemes:
+  PiyoStep:
+    build:
+      targets:
+        PiyoStep: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - PiyoStepTests
+        - PiyoStepUITests

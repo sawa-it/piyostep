@@ -1,0 +1,263 @@
+import XCTest
+import PiyoCore
+
+final class PiyoStepUITests: XCTestCase {
+
+    override func setUp() {
+        super.setUp()
+        continueAfterFailure = false
+    }
+
+    // MARK: - 起動・プロフィール
+
+    func testLaunchShowsHomeForExistingProfile() {
+        let app = UITest.launch()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+        XCTAssertTrue(app.tappable(A11yID.homeDailyChallenge).waitUntilExists())
+        XCTAssertTrue(app.tappable(A11yID.homeMealTimer).exists)
+    }
+
+    func testOnboardingCreatesAChildProfile() {
+        let app = UITest.launch(freshInstall: true)
+
+        let nameField = app.textFields[A11yID.onboardingNameField]
+        XCTAssertTrue(nameField.waitUntilExists())
+        nameField.tap()
+        nameField.typeText("ゆい")
+
+        app.tappable(A11yID.onboardingNext).waitAndTap()
+        app.tappable("\(A11yID.onboardingAgeOption)5").waitAndTap()
+        app.tappable(A11yID.onboardingNext).waitAndTap()
+        app.tappable("\(A11yID.onboardingCharacter)kuma").waitAndTap()
+        app.tappable(A11yID.onboardingStart).waitAndTap()
+
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+        XCTAssertTrue(app.element(id: A11yID.homeGreeting).waitUntilExists())
+    }
+
+    // MARK: - 今日のチャレンジ
+
+    func testDailyChallengeRunsToTheEnd() {
+        let app = UITest.launch()
+        app.tappable(A11yID.homeDailyChallenge).waitAndTap()
+
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+        XCTAssertTrue(app.element(id: A11yID.sessionPrompt).waitUntilExists())
+
+        // どの教科が出ても答えられるようにしてある。
+        var guardCount = 0
+        while !app.element(id: A11yID.result).exists && guardCount < 40 {
+            guardCount += 1
+            if app.answerCurrentQuestion(timeout: 3) {
+                app.continueAfterFeedback(timeout: 6)
+            } else {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+            }
+        }
+
+        XCTAssertTrue(
+            app.element(id: A11yID.result).waitUntilExists(),
+            "チャレンジが結果画面まで到達しない"
+        )
+        XCTAssertTrue(app.element(id: A11yID.resultStars).exists)
+        app.tappable(A11yID.resultDone).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+    }
+
+    func testAnsweringMovesToTheNextQuestion() {
+        let app = UITest.launch()
+        app.tappable(A11yID.homeDailyChallenge).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        XCTAssertTrue(app.answerCurrentQuestion(), "1 問目に答えられない")
+        XCTAssertTrue(
+            app.element(id: A11yID.sessionFeedback).waitUntilExists(),
+            "フィードバックが出ない"
+        )
+        XCTAssertTrue(app.continueAfterFeedback(), "次に進めない")
+    }
+
+    // MARK: - 教科ごとのゲーム
+
+    func testClockGameLetsYouMoveTheHands() {
+        let app = UITest.launch()
+        app.tappable("\(A11yID.homeSubject)clock").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.subjectMenu).waitUntilExists())
+
+        app.tappable("\(A11yID.subjectSkill)clockSet").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        let clockFace = app.element(id: A11yID.sessionClockFace)
+        XCTAssertTrue(clockFace.waitUntilExists())
+
+        // 長針を 6 の位置までドラッグする
+        let center = clockFace.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let bottom = clockFace.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95))
+        center.press(forDuration: 0.05, thenDragTo: bottom)
+
+        app.tappable(A11yID.sessionClockSubmit).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
+    }
+
+    func testClockReadingGameOffersSeveralAnswerModes() {
+        let app = UITest.launch()
+        app.tappable("\(A11yID.homeSubject)clock").waitAndTap()
+        app.tappable("\(A11yID.subjectSkill)clockRead").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        XCTAssertTrue(app.tappable("\(A11yID.sessionModePicker)choice").waitUntilExists())
+        XCTAssertTrue(app.tappable("\(A11yID.sessionModePicker)numberPad").exists)
+
+        // 数字入力に切り替えて答える
+        app.tappable("\(A11yID.sessionModePicker)numberPad").waitAndTap()
+        app.tappable("\(A11yID.sessionNumberPadDigit)3").waitAndTap()
+        app.tappable(A11yID.sessionNumberPadSubmit).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
+    }
+
+    func testNumberGame() {
+        let app = UITest.launch()
+        app.tappable("\(A11yID.homeSubject)number").waitAndTap()
+        app.tappable("\(A11yID.subjectSkill)numberCount").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        app.tappable("\(A11yID.sessionChoice)0").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
+    }
+
+    func testHiraganaGame() {
+        let app = UITest.launch()
+        app.tappable("\(A11yID.homeSubject)hiragana").waitAndTap()
+        app.tappable("\(A11yID.subjectSkill)hiraganaRead").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        app.tappable("\(A11yID.sessionChoice)0").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
+    }
+
+    func testHiraganaTracing() {
+        let app = UITest.launch()
+        app.tappable("\(A11yID.homeSubject)hiragana").waitAndTap()
+        app.tappable("\(A11yID.subjectSkill)hiraganaWrite").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        let canvas = app.element(id: A11yID.sessionTraceCanvas)
+        XCTAssertTrue(canvas.waitUntilExists())
+        app.scribble(on: canvas)
+        app.tappable(A11yID.sessionTraceSubmit).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
+    }
+
+    // MARK: - 音声回答
+
+    func testVoiceAnswerWithScriptedRecogniser() {
+        let app = UITest.launch(voiceScript: "さん")
+        app.tappable("\(A11yID.homeSubject)number").waitAndTap()
+        app.tappable("\(A11yID.subjectSkill)numberCount").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        app.tappable("\(A11yID.sessionModePicker)voice").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionVoiceStatus).waitUntilExists())
+
+        app.tappable(A11yID.sessionVoiceButton).waitAndTap()
+        // 「はなしてね」が出ること
+        XCTAssertTrue(app.element(id: A11yID.sessionVoiceStatus).waitUntilExists())
+
+        // モック認識が結果を返すとフィードバックに進む
+        XCTAssertTrue(
+            app.element(id: A11yID.sessionFeedback).waitForExistence(timeout: UITest.defaultTimeout),
+            "音声回答が判定されない"
+        )
+    }
+
+    // MARK: - ご飯タイマー
+
+    func testMealTimerRaceAndFinish() {
+        let app = UITest.launch(mealSeconds: 60)
+        app.tappable(A11yID.homeMealTimer).waitAndTap()
+
+        XCTAssertTrue(app.element(id: A11yID.mealSetup).waitUntilExists())
+        app.tappable(A11yID.mealStart).waitAndTap()
+
+        let race = app.element(id: A11yID.mealRace)
+        XCTAssertTrue(race.waitForExistence(timeout: UITest.defaultTimeout), "競争画面が出ない")
+
+        // 「もぐもぐ」を何回か押してから完食する
+        let bite = app.tappable(A11yID.mealBite)
+        if bite.waitForExistence(timeout: 4) {
+            bite.tap()
+            bite.tap()
+        }
+
+        app.tappable(A11yID.mealFinish).waitAndTap()
+
+        XCTAssertTrue(app.element(id: A11yID.mealResult).waitUntilExists(), "結果が出ない")
+        app.tappable(A11yID.mealResultDone).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+    }
+
+    // MARK: - ずかん
+
+    func testCollectionShowsLockedAndUnlockedItems() {
+        let app = UITest.launch()
+        app.tappable(A11yID.homeCollection).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.collection).waitUntilExists())
+        XCTAssertTrue(app.element(id: "\(A11yID.collectionItem)char.piyo").waitUntilExists())
+    }
+
+    // MARK: - 保護者エリア
+
+    func testParentGateAndDashboard() {
+        let app = UITest.launch()
+        app.tappable(A11yID.homeParent).waitAndTap()
+
+        XCTAssertTrue(app.element(id: A11yID.parentGate).waitUntilExists())
+        app.solveParentGate()
+
+        XCTAssertTrue(
+            app.element(id: A11yID.parentTabs).waitForExistence(timeout: UITest.defaultTimeout)
+                || app.staticTexts["おうちのかた"].waitForExistence(timeout: 3),
+            "保護者エリアに入れない"
+        )
+        XCTAssertTrue(app.staticTexts["学習した日"].waitForExistence(timeout: UITest.defaultTimeout))
+    }
+
+    func testParentGateBlocksWrongAnswers() {
+        let app = UITest.launch()
+        app.tappable(A11yID.homeParent).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.parentGate).waitUntilExists())
+
+        app.tappable("\(A11yID.parentGateDigit)0").waitAndTap()
+        app.tappable(A11yID.parentGateSubmit).waitAndTap()
+
+        XCTAssertTrue(app.element(id: A11yID.parentGate).exists, "誤答では通過できない")
+        XCTAssertFalse(app.staticTexts["学習した日"].exists)
+    }
+
+    func testChangingASettingIsApplied() {
+        let app = UITest.launch()
+        app.tappable(A11yID.homeParent).waitAndTap()
+        app.solveParentGate()
+
+        app.tappable("設定").waitAndTap()
+
+        let voiceAnswerToggle = app.switches[A11yID.settingsVoiceAnswer]
+        XCTAssertTrue(voiceAnswerToggle.waitUntilExists())
+        let before = voiceAnswerToggle.value as? String
+        voiceAnswerToggle.tap()
+        let after = voiceAnswerToggle.value as? String
+        XCTAssertNotEqual(before, after, "設定が切り替わらない")
+
+        // 設定した内容で子ども画面に戻れること
+        app.tappable(A11yID.parentClose).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+    }
+
+    func testAdsAreNotShownDuringLearning() {
+        // UI テストでは広告を無効にしている。学習中に広告枠が出ないことを確認する。
+        let app = UITest.launch()
+        app.tappable(A11yID.homeDailyChallenge).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+        XCTAssertFalse(app.element(id: A11yID.launchAd).exists)
+    }
+}
