@@ -273,6 +273,59 @@ final class KanaAndEnglishGeneratorTests: XCTestCase {
         XCTAssertTrue(accepted.contains(card.hiraganaWord))
     }
 
+    func testReadingAloudVariantNeverSpeaksTheAnswer() {
+        let generator = KanaReadQuestionGenerator(subject: .hiragana)
+        let random = Fixture.random(seed: 3)
+        var sawReadingAloud = false
+        var sawListenAndPick = false
+        for _ in 0 ..< 40 {
+            let question = generator.generate(level: .level3, random: random, allowVoice: true)
+            guard case let .kanaCard(card, _) = question.content else { continue }
+            if question.isVoiceFirst {
+                sawReadingAloud = true
+                XCTAssertEqual(question.answerModes, [.voice, .choice])
+                XCTAssertFalse(question.prompt.spokenText.contains(card.hiragana), "文字を読ませる問題で答えを言ってはいけない")
+                XCTAssertEqual(question.prompt.spokenTextForTap, "「\(card.hiragana)」は どれ かな？")
+                XCTAssertEqual(question.tapMode, .choice)
+            } else {
+                sawListenAndPick = true
+                XCTAssertEqual(question.answerModes, [.choice, .voice])
+                XCTAssertTrue(question.prompt.spokenText.contains(card.hiragana))
+                XCTAssertNil(question.prompt.tapFallbackSpokenText)
+            }
+        }
+        XCTAssertTrue(sawReadingAloud && sawListenAndPick, "両方の型が出る")
+
+        // 声が使えないときは、文字を見せて読ませる型は出ない。
+        for _ in 0 ..< 20 {
+            let question = generator.generate(level: .level3, random: random, allowVoice: false)
+            XCTAssertFalse(question.isVoiceFirst)
+            XCTAssertEqual(question.answerModes, [.choice])
+        }
+        // Lv1 は聞いて選ぶことから。
+        for _ in 0 ..< 20 {
+            XCTAssertFalse(generator.generate(level: .level1, random: random, allowVoice: true).isVoiceFirst)
+        }
+    }
+
+    func testTapModeSkipsTheNumberPad() {
+        let question = Fixture.integerQuestion(correct: 3)
+        XCTAssertEqual(question.answerModes, [.choice, .numberPad, .voice])
+        XCTAssertEqual(question.tapMode, .choice)
+        XCTAssertFalse(question.isVoiceFirst)
+
+        let padOnly = Question(
+            skill: .numberCount,
+            difficulty: .level1,
+            prompt: Prompt(displayText: "いくつ？", spokenText: "いくつ かな？"),
+            content: .countObjects(kind: .apple, count: 3),
+            answer: .integer(3),
+            answerModes: [.voice, .numberPad]
+        )
+        XCTAssertTrue(padOnly.isVoiceFirst)
+        XCTAssertEqual(padOnly.tapMode, .numberPad, "ほかに手段が無いときだけ数字入力に落ちる")
+    }
+
     func testKatakanaReadUsesKatakanaLabels() {
         let generator = KanaReadQuestionGenerator(subject: .katakana)
         let question = generator.generate(level: .level3, random: Fixture.random(seed: 8), allowVoice: true)

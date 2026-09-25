@@ -36,6 +36,17 @@ public struct Question: Identifiable, Equatable, Sendable {
     /// 音声回答が使えるか（設定で OFF の場合は呼び出し側で除外する）。
     public var supportsVoice: Bool { answerModes.contains(.voice) }
 
+    /// 「こえで こたえる」が本来の答え方か（`answerModes` の先頭が `.voice`）。
+    /// この問題は声が使えるあいだ選択肢を出さず、聞き取れないときだけタップに切り替える。
+    public var isVoiceFirst: Bool { answerModes.first == .voice }
+
+    /// タップで答える手段。数字入力は幼児には扱えないので選ばない（「40じ」のような
+    /// 入力ができてしまう）。声以外に手段が無ければ nil。
+    public var tapMode: AnswerMode? {
+        let withoutVoice = answerModes.filter { $0 != .voice }
+        return withoutVoice.first(where: { $0 != .numberPad }) ?? withoutVoice.first
+    }
+
     /// ヒント表示時に選択肢を絞り込む（正解を必ず含む）。
     public func narrowedChoices(to count: Int) -> [AnswerChoice] {
         guard choices.count > count, count > 0 else { return choices }
@@ -63,12 +74,25 @@ public struct Prompt: Equatable, Sendable {
     public let spokenText: String
     /// 2 回目の挑戦で出すヒント。
     public let hintText: String?
+    /// 「こえで こたえる」問題を、声が使えずタップに切り替えたときに読み上げる問いかけ。
+    /// 例：「この もじは なんて よむ？」→「「あ」は どれ かな？」。
+    /// nil なら `spokenText` をそのまま使う。
+    public let tapFallbackSpokenText: String?
 
-    public init(displayText: String, spokenText: String, hintText: String? = nil) {
+    public init(
+        displayText: String,
+        spokenText: String,
+        hintText: String? = nil,
+        tapFallbackSpokenText: String? = nil
+    ) {
         self.displayText = displayText
         self.spokenText = spokenText
         self.hintText = hintText
+        self.tapFallbackSpokenText = tapFallbackSpokenText
     }
+
+    /// タップに切り替えたあとの問いかけ。
+    public var spokenTextForTap: String { tapFallbackSpokenText ?? spokenText }
 }
 
 /// 出題内容。View はこれを見て描画を切り替える。

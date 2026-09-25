@@ -4,20 +4,51 @@ import AudioToolbox
 import UIKit
 import PiyoCore
 
+/// 読み上げと聞き取りで共有するオーディオセッション。
+///
+/// 読み上げのたびに `.playback`、聞き取りのたびに `.playAndRecord` へ切り替えると、
+/// 切り替えのたびに音が途切れ、読み上げの頭が欠ける。幼児向けアプリは
+/// 「読み上げ → すぐ聞き取り」を繰り返すので、はじめから両方できる設定に固定する。
+enum PiyoAudioSession {
+    private static var isConfigured = false
+
+    static func activate() {
+        let session = AVAudioSession.sharedInstance()
+        if !isConfigured {
+            // `.measurement` はマイクの自動調整を切るので、幼児の小さな声が拾いにくくなる。
+            try? session.setCategory(
+                .playAndRecord,
+                mode: .default,
+                options: [.defaultToSpeaker, .duckOthers, .allowBluetoothA2DP]
+            )
+            isConfigured = true
+        }
+        try? session.setActive(true, options: [])
+    }
+}
+
 /// AVSpeechSynthesizer による読み上げ。
-final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing {
+final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
+    /// 発話ごとの完了コールバック。打ち切られても必ず 1 回呼ぶ。
+    private var completions: [ObjectIdentifier: () -> Void] = [:]
 
     var isSpeaking: Bool { synthesizer.isSpeaking }
 
     override init() {
         super.init()
+        synthesizer.delegate = self
     }
 
-    func speak(_ text: String, locale: RecognitionLocale, volume: Double) {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    func speak(_ text: String, locale: RecognitionLocale, volume: Double, completion: (() -> Void)?) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            if let completion {
+                DispatchQueue.main.async(execute: completion)
+            }
+            return
+        }
         stop()
-        configureSessionForPlayback()
+        PiyoAudioSession.activate()
 
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: locale.rawValue)
@@ -26,6 +57,9 @@ final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing {
         utterance.pitchMultiplier = 1.1
         utterance.volume = Float(min(max(volume, 0), 1))
         utterance.preUtteranceDelay = 0.05
+        if let completion {
+            completions[ObjectIdentifier(utterance)] = completion
+        }
         synthesizer.speak(utterance)
     }
 
@@ -35,10 +69,19 @@ final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing {
         }
     }
 
-    private func configureSessionForPlayback() {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-        try? session.setActive(true, options: [])
+    // MARK: - AVSpeechSynthesizerDelegate
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        finish(utterance)
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        finish(utterance)
+    }
+
+    private func finish(_ utterance: AVSpeechUtterance) {
+        guard let completion = completions.removeValue(forKey: ObjectIdentifier(utterance)) else { return }
+        DispatchQueue.main.async(execute: completion)
     }
 }
 

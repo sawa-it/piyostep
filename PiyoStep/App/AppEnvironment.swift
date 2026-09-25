@@ -40,6 +40,8 @@ final class AppEnvironment {
     var pendingUnlocks: [UnlockableItem] = []
     /// 保護者画面に入るときの広告を表示中か
     var isShowingParentAd = false
+    /// 次にホームが出たときに読む挨拶（オンボーディング直後の「よろしくね」）。
+    var pendingGreeting: String?
 
     let launchArguments: LaunchArguments
 
@@ -168,14 +170,36 @@ final class AppEnvironment {
 
     // MARK: - 音
 
-    /// 読み上げ。設定で OFF のときは何もしない。
-    func speak(_ text: String, locale: RecognitionLocale = .japanese) {
-        guard settings.voiceGuidanceEnabled, settings.volume > 0.01 else { return }
-        speechSynthesizer.speak(text, locale: locale, volume: settings.volume)
+    /// 読み上げ。設定で OFF のときは読まないが、`completion` は必ず呼ぶ
+    /// （「読み終わったら聞き取りを始める」のような順序が崩れないように）。
+    func speak(_ text: String, locale: RecognitionLocale = .japanese, completion: (() -> Void)? = nil) {
+        guard settings.voiceGuidanceEnabled, settings.volume > 0.01 else {
+            if let completion {
+                DispatchQueue.main.async(execute: completion)
+            }
+            return
+        }
+        speechSynthesizer.speak(text, locale: locale, volume: settings.volume, completion: completion)
+    }
+
+    /// 効果音が鳴り終わるのを待ってから読み上げる。
+    /// 「せいかい！」のチャイムと声を同時に出すと、どちらも聞き取れなくなる。
+    func speakAfterSound(_ text: String, locale: RecognitionLocale = .japanese, completion: (() -> Void)? = nil) {
+        let delay: TimeInterval = launchArguments.reduceAnimations ? 0.05 : 0.45
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            self.speak(text, locale: locale, completion: completion)
+        }
     }
 
     func stopSpeaking() {
         speechSynthesizer.stop()
+    }
+
+    /// 予約しておいた挨拶を取り出す（1 回だけ）。
+    func consumePendingGreeting() -> String? {
+        defer { pendingGreeting = nil }
+        return pendingGreeting
     }
 
     func play(_ effect: SoundEffect) {

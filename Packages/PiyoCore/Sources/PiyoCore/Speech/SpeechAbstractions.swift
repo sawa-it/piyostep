@@ -53,10 +53,22 @@ public protocol SpeechRecognizing: AnyObject {
 }
 
 /// 読み上げの抽象。
+///
+/// 読み上げが終わったことを知らせる `completion` を持つ。
+/// 幼児向けには「読み上げ → 聞き取り開始」「効果音 → 読み上げ」のように
+/// 音を順番に鳴らす必要があり、重ねると何を言われたか分からなくなる。
 public protocol SpeechSynthesizing: AnyObject {
     var isSpeaking: Bool { get }
-    func speak(_ text: String, locale: RecognitionLocale, volume: Double)
+    /// 読み上げる。前の読み上げは打ち切る。
+    /// `completion` は読み上げが終わったとき・打ち切られたとき・読めなかったときに 1 回だけ呼ぶ。
+    func speak(_ text: String, locale: RecognitionLocale, volume: Double, completion: (() -> Void)?)
     func stop()
+}
+
+public extension SpeechSynthesizing {
+    func speak(_ text: String, locale: RecognitionLocale, volume: Double) {
+        speak(text, locale: locale, volume: volume, completion: nil)
+    }
 }
 
 /// 効果音の抽象。
@@ -141,8 +153,12 @@ public final class MockSpeechSynthesizer: SpeechSynthesizing {
 
     public init() {}
 
-    public func speak(_ text: String, locale: RecognitionLocale, volume: Double) {
+    public func speak(_ text: String, locale: RecognitionLocale, volume: Double, completion: (() -> Void)?) {
         spokenTexts.append(text)
+        // 実機と同じく「終わってから」呼ぶ。同期で呼ぶと呼び出し側の順序が実機と変わる。
+        if let completion {
+            DispatchQueue.main.async(execute: completion)
+        }
     }
 
     public func stop() {

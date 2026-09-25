@@ -12,7 +12,7 @@ struct ChoiceGridView: View {
     }
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 14) {
+        LazyVGrid(columns: columns, spacing: CGFloat(layout.sized(14))) {
             ForEach(Array(model.visibleChoices.enumerated()), id: \.element.id) { index, choice in
                 ChoiceCardButton(
                     isHighlighted: model.selectedChoiceID == choice.id,
@@ -46,202 +46,18 @@ struct ChoiceGridView: View {
                 .lineLimit(1)
         case .clock(let time):
             VStack(spacing: 4) {
-                MiniClockView(time: time, size: 76)
+                MiniClockView(time: time, size: CGFloat(layout.sized(76)))
                 Text(time.displayJapanese)
                     .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.textSoft)
             }
         case .object(let kind, let count):
-            CountableObjectsView(kind: kind, count: count, maximumColumns: 5, itemSize: 24)
+            CountableObjectsView(kind: kind, count: count, maximumColumns: 5, itemSize: CGFloat(layout.sized(24)))
         case .picture(let card):
-            EnglishWordIllustration(card: card, size: 76, showsText: false)
+            EnglishWordIllustration(card: card, size: CGFloat(layout.sized(76)), showsText: false)
         case .kanaWord(let card, let subject):
-            KanaWordIllustration(card: card, subject: subject, size: 70, showsWord: false)
+            KanaWordIllustration(card: card, subject: subject, size: CGFloat(layout.sized(70)), showsWord: false)
         }
-    }
-}
-
-/// 数字入力のキーパッド。
-struct NumberPadView: View {
-    @Bindable var model: SessionViewModel
-    @Environment(\.piyoLayout) private var layout
-
-    private let digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Text(model.numberInput.isEmpty ? "—" : model.numberInput)
-                .piyoFont(size: 56, weight: .heavy)
-                .foregroundStyle(PiyoTheme.text)
-                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(84)))
-                .background(
-                    RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius)
-                        .fill(PiyoTheme.surface)
-                )
-
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-                spacing: 12
-            ) {
-                ForEach(digits, id: \.self) { digit in
-                    digitButton(digit)
-                }
-                clearButton
-                digitButton(0)
-                submitButton
-            }
-        }
-    }
-
-    private func digitButton(_ digit: Int) -> some View {
-        Button {
-            model.appendDigit(digit)
-        } label: {
-            Text("\(digit)")
-                .piyoFont(size: 36, weight: .heavy)
-                .foregroundStyle(PiyoTheme.text)
-                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
-                .background(
-                    RoundedRectangle(cornerRadius: 18).fill(PiyoTheme.surface)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("\(A11yID.sessionNumberPadDigit)\(digit)")
-    }
-
-    private var clearButton: some View {
-        Button {
-            model.clearInput()
-        } label: {
-            Image(systemName: "delete.left.fill")
-                .font(.system(size: 26, weight: .bold))
-                .foregroundStyle(PiyoTheme.textSoft)
-                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
-                .background(RoundedRectangle(cornerRadius: 18).fill(PiyoTheme.surfaceSunken))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(A11yID.sessionNumberPadClear)
-    }
-
-    private var submitButton: some View {
-        Button {
-            model.submitNumberInput()
-        } label: {
-            Image(systemName: "checkmark")
-                .font(.system(size: 28, weight: .heavy))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
-                .background(
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(model.numberInput.isEmpty ? PiyoTheme.outline : PiyoTheme.success)
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(model.numberInput.isEmpty)
-        .accessibilityIdentifier(A11yID.sessionNumberPadSubmit)
-    }
-}
-
-/// 時刻を数字で入力するパッド（○じ ○ふん）。
-struct TimePadView: View {
-    @Bindable var model: SessionViewModel
-    @Environment(\.piyoLayout) private var layout
-
-    private let digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-    var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                slot(text: model.hourInput, unit: "じ", field: .hour)
-                slot(text: model.minuteInput, unit: "ふん", field: .minute)
-            }
-
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-                spacing: 12
-            ) {
-                ForEach(digits, id: \.self) { digit in
-                    digitButton(digit)
-                }
-                clearButton
-                digitButton(0)
-                submitButton
-            }
-        }
-    }
-
-    private func slot(text: String, unit: String, field: SessionViewModel.TimeField) -> some View {
-        Button {
-            model.activeTimeField = field
-        } label: {
-            HStack(spacing: 4) {
-                Text(text.isEmpty ? "—" : text)
-                    .piyoFont(size: 44, weight: .heavy)
-                    .foregroundStyle(PiyoTheme.text)
-                Text(unit)
-                    .piyoFont(.body)
-                    .foregroundStyle(PiyoTheme.textSoft)
-            }
-            .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(84)))
-            .background(
-                RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius)
-                    .fill(PiyoTheme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius)
-                            .stroke(
-                                model.activeTimeField == field ? PiyoTheme.primary : PiyoTheme.outline,
-                                lineWidth: model.activeTimeField == field ? 5 : 2
-                            )
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func digitButton(_ digit: Int) -> some View {
-        Button {
-            model.appendDigit(digit)
-        } label: {
-            Text("\(digit)")
-                .piyoFont(size: 36, weight: .heavy)
-                .foregroundStyle(PiyoTheme.text)
-                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
-                .background(RoundedRectangle(cornerRadius: 18).fill(PiyoTheme.surface))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("\(A11yID.sessionNumberPadDigit)\(digit)")
-    }
-
-    private var clearButton: some View {
-        Button {
-            model.clearInput()
-        } label: {
-            Image(systemName: "delete.left.fill")
-                .font(.system(size: 26, weight: .bold))
-                .foregroundStyle(PiyoTheme.textSoft)
-                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
-                .background(RoundedRectangle(cornerRadius: 18).fill(PiyoTheme.surfaceSunken))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(A11yID.sessionNumberPadClear)
-    }
-
-    private var submitButton: some View {
-        Button {
-            model.submitTimeInput()
-        } label: {
-            Image(systemName: "checkmark")
-                .font(.system(size: 28, weight: .heavy))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
-                .background(
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(model.hourInput.isEmpty ? PiyoTheme.outline : PiyoTheme.success)
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(model.hourInput.isEmpty)
-        .accessibilityIdentifier(A11yID.sessionNumberPadSubmit)
     }
 }
 
@@ -296,6 +112,10 @@ struct TracePanel: View {
                 canvasSize: CGFloat(layout.artSized(280)),
                 strokes: $model.traceStrokes
             )
+            // 線を引き終えるたびに見て、十分なぞれていれば「できた！」を待たずに進む。
+            .onChange(of: model.traceStrokes.count) { _, _ in
+                model.autoSubmitTraceIfComplete()
+            }
 
             HStack(spacing: 12) {
                 Button {
@@ -307,7 +127,7 @@ struct TracePanel: View {
                             .piyoFont(.body)
                     }
                     .foregroundStyle(PiyoTheme.textSoft)
-                    .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
+                    .frame(maxWidth: .infinity, minHeight: CGFloat(layout.minimumTapSize))
                     .background(RoundedRectangle(cornerRadius: 18).fill(PiyoTheme.surfaceSunken))
                 }
                 .buttonStyle(.plain)
@@ -315,7 +135,6 @@ struct TracePanel: View {
 
                 BigButton(
                     color: PiyoTheme.success,
-                    minHeight: CGFloat(layout.sized(72)),
                     isEnabled: !model.traceStrokes.isEmpty,
                     action: { model.submitTrace() }
                 ) {
@@ -328,23 +147,25 @@ struct TracePanel: View {
     }
 }
 
-/// 音声で答える。マイク・波形・キャラクターの反応をまとめる。
+/// 「こえで こたえる」問題の回答エリア。
+///
+/// マイクは押させない。問いかけを読み終えると勝手に聞き始めるので、
+/// 子どもは画面のキャラクターに向かって話すだけでよい。
+/// 聞き取りが止まったときだけ、マイクを押すともう一度聞いてくれる。
 struct VoiceAnswerPanel: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.piyoLayout) private var layout
     @Bindable var model: SessionViewModel
 
-    private var isListening: Bool {
-        model.voiceState.isListening
-    }
+    private var isListening: Bool { model.isListening }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: CGFloat(layout.sized(14))) {
             HStack(spacing: 14) {
                 CharacterArtView(
                     character: environment.buddyCharacter,
                     mood: isListening ? .listening : .idle,
-                    size: 84
+                    size: CGFloat(layout.sized(84))
                 )
                 VStack(alignment: .leading, spacing: 6) {
                     Text(model.voiceGuidanceText)
@@ -365,34 +186,32 @@ struct VoiceAnswerPanel: View {
 
             VoiceWaveformView(level: model.voiceLevel, isListening: isListening)
 
-            micButton
+            micIndicator
 
-            if model.shouldSuggestTapAnswer {
-                Button {
-                    model.answerMode = .choice
-                    model.stopVoice()
-                } label: {
+            // 話したくない子・話せない場面のための逃げ道。押すと選択肢に切り替わる。
+            Button {
+                model.chooseTapAnswer()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "hand.tap.fill")
                     Text("タップで こたえる")
                         .piyoFont(.body)
-                        .foregroundStyle(PiyoTheme.primaryDeep)
-                        .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(64)))
-                        .background(Capsule().fill(PiyoTheme.primary.opacity(0.14)))
                 }
-                .buttonStyle(.plain)
+                .foregroundStyle(PiyoTheme.primaryDeep)
+                .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(64)))
+                .background(Capsule().fill(PiyoTheme.primary.opacity(0.14)))
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(A11yID.sessionTapFallback)
         }
     }
 
     /// マイクは指で押すものなので、狭い画面でも小さくしすぎない。
     private var micSize: CGFloat { CGFloat(max(120, layout.artSized(132))) }
 
-    private var micButton: some View {
+    private var micIndicator: some View {
         Button {
-            if isListening {
-                model.stopVoice()
-            } else {
-                model.startVoice()
-            }
+            model.startVoice()
         } label: {
             ZStack {
                 Circle()
@@ -412,7 +231,63 @@ struct VoiceAnswerPanel: View {
             .frame(height: micSize * 1.33)
         }
         .buttonStyle(.plain)
+        .disabled(!model.canRestartVoice)
         .accessibilityIdentifier(A11yID.sessionVoiceButton)
-        .accessibilityLabel(isListening ? "きいているよ" : "マイク")
+        .accessibilityLabel(isListening ? "きいているよ" : "もういちど きいてもらう")
+    }
+}
+
+/// タップで答える問題に添える、小さな「きいているよ」表示。
+///
+/// 選択肢を押しても、声で言ってもよい。どちらも同じ画面にあるので切り替えは要らない。
+/// 聞き取りが止まったときは、この帯そのものがマイクのボタンになる。
+struct VoiceListeningBadge: View {
+    @Environment(AppEnvironment.self) private var environment
+    @Environment(\.piyoLayout) private var layout
+    @Bindable var model: SessionViewModel
+
+    private var isListening: Bool { model.isListening }
+
+    var body: some View {
+        Button {
+            model.startVoice()
+        } label: {
+            HStack(spacing: 12) {
+                CharacterArtView(
+                    character: environment.buddyCharacter,
+                    mood: isListening ? .listening : .idle,
+                    size: CGFloat(layout.sized(56))
+                )
+                VoiceWaveformView(level: model.voiceLevel, isListening: isListening, barCount: 5)
+                    .frame(width: CGFloat(layout.sized(64)))
+                Text(model.voiceGuidanceText)
+                    .piyoFont(.body)
+                    .foregroundStyle(PiyoTheme.text)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(2)
+                    .accessibilityIdentifier(A11yID.sessionVoiceStatus)
+                Spacer(minLength: 0)
+                Image(systemName: isListening ? "waveform" : "mic.fill")
+                    .font(.system(size: CGFloat(layout.fontSize(22)), weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: CGFloat(layout.sized(48)), height: CGFloat(layout.sized(48)))
+                    .background(Circle().fill(isListening ? PiyoTheme.primaryDeep : PiyoTheme.primary))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
+            .background(
+                RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius, style: .continuous)
+                    .fill(PiyoTheme.surface.opacity(0.9))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius, style: .continuous)
+                    .stroke(isListening ? PiyoTheme.primary : PiyoTheme.outline.opacity(0.6), lineWidth: isListening ? 3 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!model.canRestartVoice)
+        .accessibilityIdentifier(A11yID.sessionVoiceButton)
+        .accessibilityLabel(isListening ? "きいているよ" : "もういちど きいてもらう")
     }
 }

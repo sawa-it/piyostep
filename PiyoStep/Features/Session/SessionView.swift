@@ -23,12 +23,28 @@ struct SessionView: View {
             if let model {
                 sessionBody(model)
             }
+
+            if isShowingQuitConfirmation {
+                QuitConfirmView(
+                    character: environment.buddyCharacter,
+                    onQuit: { dismiss() },
+                    onContinue: {
+                        isShowingQuitConfirmation = false
+                        model?.speakPrompt()
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(5)
+            }
         }
         .accessibilityElement(children: .contain)
         // 入れ子のコンテナは潰れてしまうので、結果画面に変わったら名前も入れ替える。
         // こうしないと「いまどの画面か」が VoiceOver からも UI テストからも分からない。
         .accessibilityIdentifier(isShowingResult ? A11yID.result : A11yID.session)
+        .animation(.easeInOut(duration: 0.2), value: isShowingQuitConfirmation)
         .onAppear {
+            // 幼児は考えているあいだ画面に触らない。途中で暗くならないようにする。
+            UIApplication.shared.isIdleTimerDisabled = true
             guard model == nil else { return }
             let created = SessionViewModel(
                 environment: environment,
@@ -40,11 +56,8 @@ struct SessionView: View {
             model = created
         }
         .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
             model?.close()
-        }
-        .confirmationDialog("やめる？", isPresented: $isShowingQuitConfirmation) {
-            Button("ホームに もどる", role: .destructive) { dismiss() }
-            Button("つづける", role: .cancel) {}
         }
     }
 
@@ -103,6 +116,8 @@ struct SessionView: View {
         VStack(spacing: 10) {
             HStack {
                 Button {
+                    model.stopVoice()
+                    environment.speak("やめる？")
                     isShowingQuitConfirmation = true
                 } label: {
                     Image(systemName: "xmark")
@@ -173,28 +188,24 @@ struct SessionView: View {
 
     // MARK: - 回答
 
+    /// 答え方は切り替えない。タップの手段は問題ごとに 1 つ、声はその横で勝手に聞いている。
     @ViewBuilder
     private func answerArea(_ model: SessionViewModel) -> some View {
         VStack(spacing: 16) {
-            if model.availableModes.count > 1 {
-                AnswerModePicker(model: model)
-            }
-
-            switch model.answerMode {
-            case .choice:
-                ChoiceGridView(model: model)
-            case .numberPad:
-                if model.currentQuestion?.subject == .clock {
-                    TimePadView(model: model)
-                } else {
-                    NumberPadView(model: model)
+            if model.showsTapInput {
+                if model.showsVoiceStatus {
+                    VoiceListeningBadge(model: model)
                 }
-            case .voice:
+                switch model.tapMode {
+                case .dragHands:
+                    ClockDragPanel(model: model)
+                case .trace:
+                    TracePanel(model: model)
+                case .choice, .numberPad, .voice:
+                    ChoiceGridView(model: model)
+                }
+            } else {
                 VoiceAnswerPanel(model: model)
-            case .dragHands:
-                ClockDragPanel(model: model)
-            case .trace:
-                TracePanel(model: model)
             }
         }
         .disabled(model.stage == .feedback)
@@ -202,44 +213,64 @@ struct SessionView: View {
     }
 }
 
-/// 回答方法の切り替え。アイコンで分かるようにする。
-struct AnswerModePicker: View {
-    @Bindable var model: SessionViewModel
+/// 「やめる？」の確認。
+///
+/// システムのダイアログは文字だけで、幼児には読めない。
+/// キャラクターと絵つきの大きな 2 択にして、声でも聞かせる。
+struct QuitConfirmView: View {
+    @Environment(\.piyoLayout) private var layout
+
+    let character: CharacterDefinition
+    var onQuit: () -> Void
+    var onContinue: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            ForEach(model.availableModes, id: \.self) { mode in
-                Button {
-                    model.answerMode = mode
-                    model.stopVoice()
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: icon(for: mode))
-                            .font(.system(size: 22, weight: .bold))
-                        Text(mode.childTitle)
-                            .piyoFont(size: 13, weight: .semibold)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 64)
-                    .foregroundStyle(model.answerMode == mode ? .white : PiyoTheme.textSoft)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(model.answerMode == mode ? PiyoTheme.primary : PiyoTheme.surface)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("\(A11yID.sessionModePicker)\(mode.rawValue)")
-            }
-        }
-    }
+        ZStack {
+            Color.black.opacity(0.35).ignoresSafeArea()
 
-    private func icon(for mode: AnswerMode) -> String {
-        switch mode {
-        case .choice: return "hand.tap.fill"
-        case .numberPad: return "number"
-        case .voice: return "mic.fill"
-        case .dragHands: return "hand.draw.fill"
-        case .trace: return "pencil.tip"
+            VStack(spacing: CGFloat(layout.sized(18))) {
+                HStack(spacing: 16) {
+                    CharacterArtView(character: character, mood: .thinking, size: CGFloat(layout.sized(90)))
+                    Text("やめる？")
+                        .piyoFont(.title)
+                        .foregroundStyle(PiyoTheme.text)
+                }
+
+                HStack(spacing: CGFloat(layout.sized(14))) {
+                    BigButton(color: PiyoTheme.calm, action: onQuit) {
+                        VStack(spacing: 6) {
+                            Image(systemName: "house.fill")
+                                .font(.system(size: CGFloat(layout.fontSize(30)), weight: .bold))
+                            Text("おうちへ")
+                                .piyoFont(.headline)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    .accessibilityIdentifier(A11yID.sessionQuitConfirm)
+
+                    BigButton(color: PiyoTheme.success, action: onContinue) {
+                        VStack(spacing: 6) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: CGFloat(layout.fontSize(30)), weight: .bold))
+                            Text("つづける")
+                                .piyoFont(.headline)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    .accessibilityIdentifier(A11yID.sessionQuitCancel)
+                }
+            }
+            .padding(CGFloat(layout.sized(24)))
+            .frame(maxWidth: 560)
+            .background(
+                RoundedRectangle(cornerRadius: PiyoTheme.cornerRadius, style: .continuous)
+                    .fill(PiyoTheme.surface)
+                    .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+            )
+            .padding(24)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(A11yID.sessionQuitDialog)
     }
 }
 
@@ -282,11 +313,15 @@ struct FeedbackPanel: View {
 
             if feedback.canRetry {
                 BigButton(color: tint, action: onRetry) {
-                    Text("もういっかい！")
-                        .piyoFont(.headline)
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.counterclockwise")
+                        Text("もういっかい！")
+                            .piyoFont(.headline)
+                    }
                 }
                 .accessibilityIdentifier(A11yID.sessionRetry)
             } else {
+                // 読み終えると自動でも進む。押せば待たずに進める。
                 BigButton(color: tint, action: onNext) {
                     HStack(spacing: 10) {
                         Text("つぎへ")

@@ -102,13 +102,23 @@ struct VoiceWaveformView: View {
             }
         }
         .frame(height: 56)
-        .onAppear {
-            guard isListening else { return }
+        .onAppear { updateAnimation() }
+        // 聞き取りは画面が出たあとに始まる（読み上げが終わってから）ので、
+        // 出た瞬間だけでなく状態が変わったときにも動かす。
+        .onChange(of: isListening) { _, _ in updateAnimation() }
+        .accessibilityHidden(true)
+    }
+
+    private func updateAnimation() {
+        if isListening {
             withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                 phase = 1
             }
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                phase = 0
+            }
         }
-        .accessibilityHidden(true)
     }
 
     private func barHeight(for index: Int) -> CGFloat {

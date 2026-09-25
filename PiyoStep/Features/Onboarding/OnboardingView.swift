@@ -356,6 +356,7 @@ struct OnboardingView: View {
         settings.mealCharacterID = characterID
         environment.update(settings: settings)
         environment.play(.star)
-        environment.speak("\(profile.callName)、よろしくね！")
+        // ここでは読まない。この直後にホームが出て挨拶するので、そこで 1 回だけ読む。
+        environment.pendingGreeting = "\(profile.callName)、よろしくね！ なにで あそぶ？"
     }
 }

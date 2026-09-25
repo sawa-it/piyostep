@@ -305,7 +305,8 @@ struct HomeView: View {
                     minHeight: CGFloat(layout.sized(126))
                 ) {
                     environment.haptics.tap()
-                    environment.speak(subject.childTitle)
+                    // ここでは読まない。開いたメニューが「とけい、なにで あそぶ？」と読むので、
+                    // 重ねると頭が欠けて聞き取れない。
                     sheetRoute = .subjectMenu(subject)
                 }
                 .accessibilityIdentifier("\(A11yID.homeSubject)\(subject.rawValue)")
@@ -386,7 +387,11 @@ struct HomeView: View {
 
     private func greet() {
         guard let profile = environment.profile else { return }
-        environment.speak("\(profile.callName)、こんにちは！ なにで あそぶ？")
+        // オンボーディング直後は「よろしくね」から続ける。
+        // 別々に読むと、ホームに切り替わった瞬間に「こんにちは」が「よろしくね」を消してしまう。
+        let greeting = environment.consumePendingGreeting()
+            ?? "\(profile.callName)、こんにちは！ なにで あそぶ？"
+        environment.speakAfterSound(greeting)
     }
 
     /// 別の表示を閉じ切ってから次を出す。

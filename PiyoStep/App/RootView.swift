@@ -9,6 +9,11 @@ struct RootView: View {
         PiyoLayoutReader {
             content
         }
+        // 幼児は画面の端を触る。下端からのスワイプ（ホーム・Dock）と
+        // 上端からのスワイプ（通知・コントロールセンター）を 1 回のスワイプでは効かないようにする。
+        // iPad ではとくに、Dock が出てきて別のアプリに行ってしまう事故が多い。
+        .defersSystemGestures(on: [.bottom, .top])
+        .persistentSystemOverlays(.hidden)
     }
 
     private var content: some View {

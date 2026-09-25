@@ -185,28 +185,15 @@ extension XCUIApplication {
         return entries.isEmpty ? "識別子なし" : entries.joined(separator: " ")
     }
 
-    /// 回答方法を切り替える。切り替えられたら true。
-    @discardableResult
-    func switchAnswerMode(to mode: String) -> Bool {
-        let button = tappable("\(A11yID.sessionModePicker)\(mode)")
-        guard button.exists else { return false }
-        guard button.scrollIntoView() else { return false }
-        button.tap()
-        return true
-    }
-
     /// 画面に出ている問題に、種類を問わず答える。
     /// どの教科が出ても 1 つのヘルパーで進められるようにする。
     @discardableResult
     func answerCurrentQuestion(timeout: TimeInterval = UITest.defaultTimeout) -> Bool {
-        // 0) 「こえ」が既定で選ばれている問題は、タップで答えられるモードに切り替える。
-        //    かずの よみかた などは answerModes の先頭が .voice なので、
-        //    音声が使える端末では最初から音声パネルが出ている。
-        if !element(id: "\(A11yID.sessionChoice)0").exists,
-           !element(id: "\(A11yID.sessionNumberPadDigit)1").exists {
-            if !switchAnswerMode(to: "choice") {
-                switchAnswerMode(to: "numberPad")
-            }
+        // 0) 「こえで こたえる」問題は、声が使えない UI テストでは選択肢に切り替える。
+        //    （放っておいても切り替わるが、待たずに進める）
+        let tapFallback = tappable(A11yID.sessionTapFallback)
+        if tapFallback.exists && tapFallback.isHittable {
+            tapFallback.tap()
         }
 
         // 1) 時計の針を合わせる問題
@@ -216,33 +203,22 @@ extension XCUIApplication {
             return true
         }
 
-        // 2) なぞり書き
+        // 2) なぞり書き。十分なぞれると「できた！」を押さなくても進む。
         let traceCanvas = element(id: A11yID.sessionTraceCanvas)
         if traceCanvas.exists && traceCanvas.scrollIntoView() {
             scribble(on: traceCanvas)
             let traceSubmit = tappable(A11yID.sessionTraceSubmit)
-            if traceSubmit.exists && traceSubmit.scrollIntoView() {
+            if traceSubmit.exists && traceSubmit.isHittable {
                 traceSubmit.tap()
-                return true
             }
+            return true
         }
 
         // 3) 選択肢
         let firstChoice = tappable("\(A11yID.sessionChoice)0")
-        if firstChoice.waitForExistence(timeout: 2) && firstChoice.scrollIntoView() {
+        if firstChoice.waitForExistence(timeout: 3) && firstChoice.scrollIntoView() {
             firstChoice.tap()
             return true
-        }
-
-        // 4) 数字入力
-        let digit = tappable("\(A11yID.sessionNumberPadDigit)1")
-        if digit.exists && digit.scrollIntoView() {
-            digit.tap()
-            let submit = tappable(A11yID.sessionNumberPadSubmit)
-            if submit.exists && submit.scrollIntoView() {
-                submit.tap()
-                return true
-            }
         }
 
         return false

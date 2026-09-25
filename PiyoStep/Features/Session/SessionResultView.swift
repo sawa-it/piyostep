@@ -24,7 +24,8 @@ struct SessionResultView: View {
         .accessibilityIdentifier(A11yID.result)
         .onAppear {
             animateStars = true
-            environment.speak(summary.childMessage)
+            // ★の音が鳴り終わってから話す。
+            environment.speakAfterSound(summary.childMessage)
         }
     }
 

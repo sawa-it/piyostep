@@ -8,6 +8,7 @@ struct MealRaceContainerView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var model: MealRaceViewModel?
+    @State private var isShowingQuitConfirmation = false
 
     var body: some View {
         ZStack {
@@ -19,18 +20,36 @@ struct MealRaceContainerView: View {
                 case .countdown(let value):
                     CountdownView(value: value, character: model.character)
                 case .racing:
-                    MealRaceView(model: model, onClose: { dismiss() })
+                    // 競争中の「×」は、押し間違いで 15 分のごはんが消えないよう確認を挟む。
+                    MealRaceView(model: model, onClose: {
+                        environment.speak("やめる？")
+                        isShowingQuitConfirmation = true
+                    })
                 case .finished:
                     MealResultView(model: model, onDone: { dismiss() })
                 }
             }
+
+            if isShowingQuitConfirmation {
+                QuitConfirmView(
+                    character: environment.buddyCharacter,
+                    onQuit: { dismiss() },
+                    onContinue: { isShowingQuitConfirmation = false }
+                )
+                .transition(.opacity)
+                .zIndex(5)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: isShowingQuitConfirmation)
         .onAppear {
+            // ごはんのあいだ（15 分ほど）画面に触らないので、暗くならないようにする。
+            UIApplication.shared.isIdleTimerDisabled = true
             if model == nil {
                 model = MealRaceViewModel(environment: environment)
             }
         }
         .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
             model?.cancel()
         }
     }
@@ -197,6 +216,7 @@ struct MealRaceView: View {
                     .background(Circle().fill(PiyoTheme.surface.opacity(0.9)))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier(A11yID.mealClose)
 
             Spacer()
 

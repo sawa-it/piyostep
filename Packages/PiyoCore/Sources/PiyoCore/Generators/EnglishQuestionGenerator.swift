@@ -15,6 +15,7 @@ public struct AlphabetReadQuestionGenerator: QuestionGenerating {
         let pool = AlphabetCatalog.cards(for: level)
         let card = random.pick(pool) ?? AlphabetCatalog.all[0]
         let isUppercase = AlphabetReadQuestionGenerator.usesUppercase(for: level, random: random)
+        let readsAloud = KanaReadQuestionGenerator.usesReadingAloud(level: level, allowVoice: allowVoice, random: random)
 
         let choices = ChoiceBuilder.choices(
             correct: card,
@@ -26,11 +27,21 @@ public struct AlphabetReadQuestionGenerator: QuestionGenerating {
             display: { .text($0.character(isUppercase: isUppercase)) }
         )
 
-        let prompt = Prompt(
-            displayText: "どれかな？",
-            spokenText: "\(card.letterName). どれ かな？",
-            hintText: "\(card.katakanaName) だよ"
-        )
+        let prompt: Prompt
+        if readsAloud {
+            prompt = Prompt(
+                displayText: "なんて よむ？",
+                spokenText: "この もじは なんて よむ かな？",
+                hintText: "\(card.katakanaName) だよ",
+                tapFallbackSpokenText: "\(card.letterName). どれ かな？"
+            )
+        } else {
+            prompt = Prompt(
+                displayText: "どれかな？",
+                spokenText: "\(card.letterName). どれ かな？",
+                hintText: "\(card.katakanaName) だよ"
+            )
+        }
         return Question(
             skill: skill,
             difficulty: level,
@@ -41,7 +52,7 @@ public struct AlphabetReadQuestionGenerator: QuestionGenerating {
                 accepted: card.acceptedSpokenForms,
                 locale: .englishUS
             ),
-            answerModes: answerModes([.choice, .voice], allowVoice: allowVoice),
+            answerModes: answerModes(readsAloud ? [.voice, .choice] : [.choice, .voice], allowVoice: allowVoice),
             choices: choices
         )
     }

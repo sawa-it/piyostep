@@ -274,7 +274,7 @@ struct PurchaseView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("広告について", systemImage: "info.circle")
                         .font(.headline)
-                    Text("広告はアプリの起動時にだけ表示されます。学習中とごはんタイマー中には表示されません。")
+                    Text("広告はこの保護者画面に入るときにだけ表示されます。お子さまの画面には一切表示されません。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

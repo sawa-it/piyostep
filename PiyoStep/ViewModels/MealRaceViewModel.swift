@@ -78,7 +78,9 @@ final class MealRaceViewModel {
     func begin() {
         guard stage == .ready else { return }
         environment.adPresenter.isLearningSessionActive = true
-        environment.speak(engine.character.raceIntroLine)
+        // 準備画面が開いたときに同じ台詞を読んでいる。ここで読み直すと
+        // カウントダウンの音とかぶるので、読み上げは止めて数字だけにする。
+        environment.stopSpeaking()
         runCountdown(from: 3)
     }
 
@@ -156,7 +158,8 @@ final class MealRaceViewModel {
         environment.adPresenter.isLearningSessionActive = false
         environment.play(.mealFinish)
         environment.haptics.success()
-        environment.speak("\(outcome.headline) \(outcome.subline)")
+        // 効果音が鳴り終わってから話す。
+        environment.speakAfterSound("\(outcome.headline) \(outcome.subline)")
 
         let record = MealSessionRecord(
             characterID: engine.character.id,

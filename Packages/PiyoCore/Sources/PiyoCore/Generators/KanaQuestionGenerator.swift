@@ -10,9 +10,18 @@ public struct KanaReadQuestionGenerator: QuestionGenerating {
         self.skill = subject == .katakana ? .katakanaRead : .hiraganaRead
     }
 
+    /// 声で答えられるとき、「もじを みて よむ」問題にする割合。
+    /// 「おとを きいて えらぶ」だけだと、文字を見て読む練習にならない。
+    public static func usesReadingAloud(level: DifficultyLevel, allowVoice: Bool, random: RandomSource) -> Bool {
+        guard allowVoice else { return false }
+        // Lv1 は聞いて選ぶことから。Lv2 以上は半々。
+        return level.raw >= 2 && random.nextInt(upperBound: 2) == 0
+    }
+
     public func generate(level: DifficultyLevel, random: RandomSource, allowVoice: Bool) -> Question {
         let pool = KanaCatalog.cards(for: level)
         let card = random.pick(pool) ?? KanaCatalog.teachable[0]
+        let readsAloud = KanaReadQuestionGenerator.usesReadingAloud(level: level, allowVoice: allowVoice, random: random)
 
         let choices = ChoiceBuilder.choices(
             correct: card,
@@ -24,11 +33,22 @@ public struct KanaReadQuestionGenerator: QuestionGenerating {
             display: { .text($0.character(for: subject)) }
         )
 
-        let prompt = Prompt(
-            displayText: "どれかな？",
-            spokenText: "「\(card.hiragana)」は どれ かな？",
-            hintText: "「\(card.hiraganaWord)」の さいしょの もじ だよ"
-        )
+        let prompt: Prompt
+        if readsAloud {
+            // 文字を見せて読ませる。読み上げで答えを言ってはいけない。
+            prompt = Prompt(
+                displayText: "なんて よむ？",
+                spokenText: "この もじは なんて よむ かな？",
+                hintText: "「\(card.hiraganaWord)」の さいしょの もじ だよ",
+                tapFallbackSpokenText: "「\(card.hiragana)」は どれ かな？"
+            )
+        } else {
+            prompt = Prompt(
+                displayText: "どれかな？",
+                spokenText: "「\(card.hiragana)」は どれ かな？",
+                hintText: "「\(card.hiraganaWord)」の さいしょの もじ だよ"
+            )
+        }
         return Question(
             skill: skill,
             difficulty: level,
@@ -39,7 +59,7 @@ public struct KanaReadQuestionGenerator: QuestionGenerating {
                 accepted: [card.hiragana, card.katakana, card.romaji, card.word(for: subject)],
                 locale: .japanese
             ),
-            answerModes: answerModes([.choice, .voice], allowVoice: allowVoice),
+            answerModes: answerModes(readsAloud ? [.voice, .choice] : [.choice, .voice], allowVoice: allowVoice),
             choices: choices
         )
     }

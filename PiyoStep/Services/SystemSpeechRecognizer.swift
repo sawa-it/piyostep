@@ -94,17 +94,15 @@ final class SystemSpeechRecognizer: NSObject, SpeechRecognizing {
         }
         recognizer = speechRecognizer
 
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-        } catch {
-            deliverFailure(.audioEngineFailed)
-            return
-        }
+        // 読み上げと同じ設定を使う。ここで設定を切り替えると読み上げの頭が欠ける。
+        PiyoAudioSession.activate()
 
         let bufferRequest = SFSpeechAudioBufferRecognitionRequest()
         bufferRequest.shouldReportPartialResults = true
+        // 端末の中だけで認識できるなら、音声を外に出さない（「音声データを外部に送らない」約束）。
+        if speechRecognizer.supportsOnDeviceRecognition {
+            bufferRequest.requiresOnDeviceRecognition = true
+        }
         request = bufferRequest
 
         let inputNode = audioEngine.inputNode
@@ -160,8 +158,8 @@ final class SystemSpeechRecognizer: NSObject, SpeechRecognizing {
         task?.cancel()
         task = nil
         audioLevel = 0
-
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // セッションはそのまま残す。ここで止めると、直後の読み上げがもう一度
+        // セッションを起こすことになり、頭が欠けたり間が空いたりする。
     }
 
     // MARK: - 内部

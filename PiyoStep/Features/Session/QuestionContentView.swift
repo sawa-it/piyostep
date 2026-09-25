@@ -94,8 +94,9 @@ struct QuestionContentView: View {
         let subject = question.subject
         switch task {
         case .read:
-            // 音声で答えるときだけ文字を見せる（選択肢では答えになってしまうため）。
-            if model.answerMode == .voice {
+            // 「こえで よむ」問題のあいだだけ文字を見せる。選択肢が出ている状態で
+            // 見せると、同じ形を探すだけになってしまう。
+            if !model.showsTapInput {
                 VStack(spacing: 10) {
                     Text(card.character(for: subject))
                         .piyoFont(.giant)
@@ -135,7 +136,7 @@ struct QuestionContentView: View {
     private func alphabetContent(card: AlphabetCard, task: CharacterTask, isUppercase: Bool) -> some View {
         switch task {
         case .read:
-            if model.answerMode == .voice {
+            if !model.showsTapInput {
                 VStack(spacing: 10) {
                     Text(card.character(isUppercase: isUppercase))
                         .piyoFont(.giant)

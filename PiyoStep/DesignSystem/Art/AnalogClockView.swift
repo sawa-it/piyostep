@@ -2,6 +2,10 @@ import SwiftUI
 import PiyoCore
 
 /// アナログ時計。読み取り専用にも、針をドラッグできるようにもできる。
+///
+/// 針は本物の時計のようにつながっている。長い針を 1 周まわすと短い針が 1 時間ぶん進む。
+/// 2 本の針を別々に合わせるのは幼児には難しく、長い針だけをぐるぐる回して
+/// 目当ての時刻に持っていけるほうが、時計のしくみの理解にもつながる。
 struct AnalogClockView: View {
     var time: ClockTime
     var isInteractive: Bool = false
@@ -10,23 +14,30 @@ struct AnalogClockView: View {
     var size: CGFloat = 280
     var onChange: ((ClockTime) -> Void)? = nil
 
-    @State private var hourAngle: Double = 0
-    @State private var minuteAngle: Double = 0
+    /// 0 時からの通算分。ドラッグ中は小数で持ち、指の動きにそのまま追従させる。
+    @State private var totalMinutes: Double = 0
     @State private var draggingHand: Hand?
+    @State private var lastDragAngle: Double = 0
 
     enum Hand {
         case hour
         case minute
     }
 
-    /// 現在表示している時刻。
+    /// 現在表示している時刻（刻みに丸めたもの）。
     private var displayedTime: ClockTime {
         guard isInteractive else { return time }
-        return ClockTime.fromHandAngles(
-            hourAngleDegrees: hourAngle,
-            minuteAngleDegrees: minuteAngle,
-            minuteStep: minuteStep
-        )
+        return AnalogClockView.snapped(totalMinutes: totalMinutes, step: minuteStep)
+    }
+
+    private var hourAngle: Double {
+        guard isInteractive else { return time.hourHandAngleDegrees }
+        return ClockTime.normalizeDegrees(totalMinutes / 2)
+    }
+
+    private var minuteAngle: Double {
+        guard isInteractive else { return time.minuteHandAngleDegrees }
+        return ClockTime.normalizeDegrees(totalMinutes * 6)
     }
 
     var body: some View {
@@ -36,15 +47,15 @@ struct AnalogClockView: View {
             if showsNumbers { numbers }
             hand(
                 length: size * 0.26,
-                width: size * 0.045,
-                angle: displayedTime.hourHandAngleDegrees,
+                width: size * 0.06,
+                angle: hourAngle,
                 color: PiyoTheme.primaryDeep,
                 identifier: A11yID.sessionClockHourHand
             )
             hand(
-                length: size * 0.37,
-                width: size * 0.032,
-                angle: displayedTime.minuteHandAngleDegrees,
+                length: size * 0.38,
+                width: size * 0.04,
+                angle: minuteAngle,
                 color: PiyoTheme.calm,
                 identifier: A11yID.sessionClockMinuteHand
             )
@@ -55,8 +66,8 @@ struct AnalogClockView: View {
         .frame(width: size, height: size)
         .contentShape(Circle())
         .gesture(dragGesture, including: isInteractive ? .all : .subviews)
-        .onAppear(perform: syncAngles)
-        .onChange(of: time) { _, _ in syncAngles() }
+        .onAppear(perform: syncFromTime)
+        .onChange(of: time) { _, _ in syncFromTime() }
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier(A11yID.sessionClockFace)
         .accessibilityLabel(Text(displayedTime.displayJapanese))
@@ -111,7 +122,8 @@ struct AnalogClockView: View {
             .frame(width: width, height: length)
             .offset(y: -length / 2)
             .rotationEffect(.degrees(angle))
-            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: angle)
+            // ドラッグ中は指にぴったり付ける。離したときだけ、刻みに揃う動きを見せる。
+            .animation(draggingHand == nil ? .spring(response: 0.2, dampingFraction: 0.8) : nil, value: angle)
             .accessibilityIdentifier(identifier)
     }
 
@@ -131,13 +143,20 @@ struct AnalogClockView: View {
                 let angle = ClockTime.normalizeDegrees(atan2(dx, -dy) * 180.0 / .pi)
 
                 if draggingHand == nil {
-                    draggingHand = closestHand(to: angle, radius: radius)
+                    let hand = closestHand(to: angle, radius: radius)
+                    draggingHand = hand
+                    // つかんだ針のいまの角度から測り始める。最初の一回で針が指に飛びつく。
+                    lastDragAngle = hand == .minute ? minuteAngle : hourAngle
                 }
+                let delta = AnalogClockView.signedDelta(from: lastDragAngle, to: angle)
+                lastDragAngle = angle
                 switch draggingHand {
-                case .hour:
-                    hourAngle = angle
                 case .minute:
-                    minuteAngle = angle
+                    // 長い針 6 度 = 1 分。短い針もつられて進む。
+                    totalMinutes = AnalogClockView.wrap(totalMinutes + delta / 6)
+                case .hour:
+                    // 短い針 30 度 = 60 分。
+                    totalMinutes = AnalogClockView.wrap(totalMinutes + delta * 2)
                 case .none:
                     break
                 }
@@ -147,17 +166,15 @@ struct AnalogClockView: View {
                 draggingHand = nil
                 // 指を離したら、丸められた位置に針を揃える。
                 let snapped = displayedTime
-                hourAngle = snapped.hourHandAngleDegrees
-                minuteAngle = snapped.minuteHandAngleDegrees
+                totalMinutes = Double(snapped.totalMinutes)
                 onChange?(snapped)
             }
     }
 
     /// 触った場所に近いほうの針を掴む。
     private func closestHand(to angle: Double, radius: Double) -> Hand {
-        let current = displayedTime
-        let hourDelta = angularDistance(angle, current.hourHandAngleDegrees)
-        let minuteDelta = angularDistance(angle, current.minuteHandAngleDegrees)
+        let hourDelta = angularDistance(angle, hourAngle)
+        let minuteDelta = angularDistance(angle, minuteAngle)
 
         // 外周に近いところを触ったら、長い針（分）を優先する。
         if radius > Double(size) * 0.30 {
@@ -171,9 +188,44 @@ struct AnalogClockView: View {
         return min(diff, 360 - diff)
     }
 
-    private func syncAngles() {
-        hourAngle = time.hourHandAngleDegrees
-        minuteAngle = time.minuteHandAngleDegrees
+    private func syncFromTime() {
+        // ドラッグ中に親から同じ値が戻ってきても、指の位置を崩さない。
+        guard draggingHand == nil else { return }
+        if displayedTime != time || !isInteractive {
+            totalMinutes = Double(time.totalMinutes)
+        }
+    }
+
+    // MARK: - 計算（テストしやすいように static）
+
+    /// -180 〜 180 の範囲で、`from` から `to` への最短の回転角を返す。
+    static func signedDelta(from: Double, to: Double) -> Double {
+        var delta = ClockTime.normalizeDegrees(to) - ClockTime.normalizeDegrees(from)
+        if delta > 180 { delta -= 360 }
+        if delta < -180 { delta += 360 }
+        return delta
+    }
+
+    /// 0 以上 720 未満に収める。
+    static func wrap(_ minutes: Double) -> Double {
+        var value = minutes.truncatingRemainder(dividingBy: 720)
+        if value < 0 { value += 720 }
+        return value
+    }
+
+    /// 通算分を、分の刻みに丸めた時刻にする。
+    static func snapped(totalMinutes: Double, step: Int) -> ClockTime {
+        let stepValue = max(1, step)
+        let total = Int(wrap(totalMinutes).rounded())
+        let hourIndex = total / 60
+        let minute = total % 60
+        var snappedMinute = Int((Double(minute) / Double(stepValue)).rounded()) * stepValue
+        var hour = hourIndex
+        if snappedMinute >= 60 {
+            snappedMinute -= 60
+            hour += 1
+        }
+        return ClockTime.fromTotalMinutes(hour * 60 + snappedMinute)
     }
 }
 

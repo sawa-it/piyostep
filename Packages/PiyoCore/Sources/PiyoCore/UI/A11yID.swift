@@ -37,11 +37,12 @@ public enum A11yID {
     public static let sessionPrompt = "session.prompt"
     public static let sessionProgress = "session.progress"
     public static let sessionChoice = "session.choice"              // + index
-    public static let sessionNumberPadDigit = "session.numberPad.digit"  // + digit
-    public static let sessionNumberPadSubmit = "session.numberPad.submit"
-    public static let sessionNumberPadClear = "session.numberPad.clear"
-    public static let sessionVoiceButton = "session.voiceButton"
+    /// 聞き取りの様子（きいているよ／はなしてね）。声が使える問題では常に出る。
     public static let sessionVoiceStatus = "session.voiceStatus"
+    /// 聞き取りが止まっているときに、もういちど聞いてもらうボタン。
+    public static let sessionVoiceButton = "session.voiceButton"
+    /// 「こえで こたえる」問題で、声が拾えないときに出るタップへの切り替え。
+    public static let sessionTapFallback = "session.tapFallback"
     public static let sessionFeedback = "session.feedback"
     public static let sessionNext = "session.next"
     public static let sessionRetry = "session.retry"
@@ -53,7 +54,10 @@ public enum A11yID {
     public static let sessionTraceCanvas = "session.trace.canvas"
     public static let sessionTraceSubmit = "session.trace.submit"
     public static let sessionTraceClear = "session.trace.clear"
-    public static let sessionModePicker = "session.modePicker"       // + mode.rawValue
+    /// 「やめる？」の確認。文字が読めなくても分かるよう、絵つきの大きな 2 択にする。
+    public static let sessionQuitDialog = "session.quit"
+    public static let sessionQuitConfirm = "session.quit.confirm"
+    public static let sessionQuitCancel = "session.quit.cancel"
 
     // 結果
     public static let result = "result.root"
@@ -66,6 +70,7 @@ public enum A11yID {
     public static let mealRace = "meal.race"
     public static let mealBite = "meal.bite"
     public static let mealFinish = "meal.finish"
+    public static let mealClose = "meal.close"
     public static let mealResult = "meal.result"
     public static let mealResultDone = "meal.result.done"
     public static let mealCharacterProgress = "meal.characterProgress"

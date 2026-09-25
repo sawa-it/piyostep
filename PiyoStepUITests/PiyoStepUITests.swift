@@ -176,27 +176,45 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
     }
 
-    func testClockReadingGameOffersSeveralAnswerModes() {
+    func testClockReadingGameShowsChoicesAndListensWithoutAModePicker() {
         let app = UITest.launch()
         app.tappable("\(A11yID.homeSubject)clock").waitAndTap()
         app.tappable("\(A11yID.subjectSkill)clockRead").waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
 
-        XCTAssertTrue(app.tappable("\(A11yID.sessionModePicker)choice").waitUntilExists())
-        XCTAssertTrue(app.tappable("\(A11yID.sessionModePicker)numberPad").exists)
-
-        // 数字入力に切り替えて答える
-        XCTAssertTrue(app.switchAnswerMode(to: "numberPad"), "数字入力に切り替えられない")
-
-        // モード切替後にパッドが組み上がるまで待つ
-        let digit = app.element(id: "\(A11yID.sessionNumberPadDigit)3")
+        // 答え方を切り替えるボタンは無い。選択肢がはじめから出ていて、声も同時に聞いている。
         XCTAssertTrue(
-            digit.waitForExistence(timeout: UITest.defaultTimeout),
-            "数字パッドが出ない / \(app.screenSummary(prefix: "session."))"
+            app.tappable("\(A11yID.sessionChoice)0").waitUntilExists(),
+            "選択肢が出ない / \(app.screenSummary(prefix: "session."))"
         )
-        digit.waitAndTap()
-        app.tappable(A11yID.sessionNumberPadSubmit).waitAndTap()
+        XCTAssertTrue(
+            app.element(id: A11yID.sessionVoiceStatus).waitUntilExists(),
+            "聞き取りの様子が出ない / \(app.screenSummary(prefix: "session."))"
+        )
+        XCTAssertFalse(app.element(id: "session.modePicker").exists, "切り替えボタンが残っている")
+        XCTAssertFalse(app.element(id: "session.numberPad.digit3").exists, "数字入力が残っている（40じ が入れられてしまう）")
+
+        app.tappable("\(A11yID.sessionChoice)0").waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
+    }
+
+    func testQuittingAsksWithPicturesAndCanBeCancelled() {
+        let app = UITest.launch()
+        app.tappable(A11yID.homeDailyChallenge).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        app.tappable(A11yID.sessionClose).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionQuitDialog).waitUntilExists(), "「やめる？」が出ない")
+
+        // 「つづける」で元の問題に戻る
+        app.tappable(A11yID.sessionQuitCancel).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.sessionPrompt).waitUntilExists())
+        XCTAssertFalse(app.element(id: A11yID.sessionQuitDialog).exists)
+
+        // 「おうちへ」でホームに戻る
+        app.tappable(A11yID.sessionClose).waitAndTap()
+        app.tappable(A11yID.sessionQuitConfirm).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
     }
 
     func testNumberGame() {
@@ -234,23 +252,22 @@ final class PiyoStepUITests: XCTestCase {
 
     // MARK: - 音声回答
 
-    func testVoiceAnswerWithScriptedRecogniser() {
+    func testVoiceAnswerIsHeardWithoutPressingAnything() {
         let app = UITest.launch(voiceScript: "さん")
         app.tappable("\(A11yID.homeSubject)number").waitAndTap()
         app.tappable("\(A11yID.subjectSkill)numberCount").waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
 
-        app.tappable("\(A11yID.sessionModePicker)voice").waitAndTap()
-        XCTAssertTrue(app.element(id: A11yID.sessionVoiceStatus).waitUntilExists())
+        // 聞き取りの様子が出ている
+        XCTAssertTrue(
+            app.element(id: A11yID.sessionVoiceStatus).waitUntilExists(),
+            "聞き取りの様子が出ない / \(app.screenSummary(prefix: "session."))"
+        )
 
-        app.tappable(A11yID.sessionVoiceButton).waitAndTap()
-        // 「はなしてね」が出ること
-        XCTAssertTrue(app.element(id: A11yID.sessionVoiceStatus).waitUntilExists())
-
-        // モック認識が結果を返すとフィードバックに進む
+        // マイクも切り替えも押さない。問いかけのあと勝手に聞き、モック認識が返した「さん」で判定される。
         XCTAssertTrue(
             app.element(id: A11yID.sessionFeedback).waitForExistence(timeout: UITest.defaultTimeout),
-            "音声回答が判定されない"
+            "音声回答が判定されない / \(app.screenSummary(prefix: "session."))"
         )
     }
 

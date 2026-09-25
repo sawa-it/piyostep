@@ -91,7 +91,8 @@ struct SubjectMenuView: View {
 
     private func select(_ skill: Skill) {
         environment.haptics.tap()
-        environment.speak(skill.childTitle)
+        // 読まない。直後に始まるセッションが問いかけを読むので、重なって聞き取れなくなる。
+        environment.stopSpeaking()
         onSelect(skill)
     }
 
