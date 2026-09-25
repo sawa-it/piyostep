@@ -185,30 +185,12 @@ extension XCUIApplication {
         return entries.isEmpty ? "識別子なし" : entries.joined(separator: " ")
     }
 
-    /// 回答方法を切り替える。切り替えられたら true。
-    @discardableResult
-    func switchAnswerMode(to mode: String) -> Bool {
-        let button = tappable("\(A11yID.sessionModePicker)\(mode)")
-        guard button.exists else { return false }
-        guard button.scrollIntoView() else { return false }
-        button.tap()
-        return true
-    }
-
     /// 画面に出ている問題に、種類を問わず答える。
     /// どの教科が出ても 1 つのヘルパーで進められるようにする。
+    /// 回答のしかたを切り替える UI は無く、タップで答えるものが必ず 1 つ出ている
+    /// （音声は横で自動的に聞いているだけ）。
     @discardableResult
     func answerCurrentQuestion(timeout: TimeInterval = UITest.defaultTimeout) -> Bool {
-        // 0) 「こえ」が既定で選ばれている問題は、タップで答えられるモードに切り替える。
-        //    かずの よみかた などは answerModes の先頭が .voice なので、
-        //    音声が使える端末では最初から音声パネルが出ている。
-        if !element(id: "\(A11yID.sessionChoice)0").exists,
-           !element(id: "\(A11yID.sessionNumberPadDigit)1").exists {
-            if !switchAnswerMode(to: "choice") {
-                switchAnswerMode(to: "numberPad")
-            }
-        }
-
         // 1) 時計の針を合わせる問題
         let clockSubmit = tappable(A11yID.sessionClockSubmit)
         if clockSubmit.exists && clockSubmit.scrollIntoView() {
@@ -296,7 +278,7 @@ extension UITest {
     /// アプリが自分で付けた識別子か。
     /// `Image(systemName:)` は SF Symbol 名がそのまま識別子になるので、それを除く。
     static let identifierPrefixes = [
-        "home.", "session.", "result.", "meal.", "collection.",
+        "home.", "session.", "dayEnd.", "meal.", "collection.",
         "parent.", "settings.", "onboarding.", "subject.", "ad.", "avatar"
     ]
 

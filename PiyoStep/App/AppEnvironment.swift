@@ -29,6 +29,7 @@ final class AppEnvironment {
     let resultProcessor: LearningResultProcessor
     let unlockEvaluator: UnlockEvaluator
     let aggregator: ProgressAggregator
+    let dayEndSummarizer: DayEndSummarizer
 
     // MARK: - 状態
 
@@ -36,8 +37,9 @@ final class AppEnvironment {
     var settings: AppSettings
     var progress: ProgressSummary = .empty
     var unlockedItemIDs: Set<String> = UnlockCatalog.initiallyUnlockedIDs
-    /// 直近に解放されたもの（演出したら空にする）
-    var pendingUnlocks: [UnlockableItem] = []
+    /// 子どもが最後に「きょうは おしまい」をしたとき。
+    /// ★やアンロックはこの時刻以降のぶんを、おしまいの画面でまとめて見せる。
+    private(set) var lastDayEndAt: Date?
     /// 保護者画面に入るときの広告を表示中か
     var isShowingParentAd = false
 
@@ -76,9 +78,11 @@ final class AppEnvironment {
         self.resultProcessor = LearningResultProcessor()
         self.unlockEvaluator = UnlockEvaluator()
         self.aggregator = ProgressAggregator()
+        self.dayEndSummarizer = DayEndSummarizer()
 
         self.settings = settingsStore.load()
         self.profile = settingsStore.loadProfile()
+        self.lastDayEndAt = settingsStore.loadDayEndDate()
     }
 
     // MARK: - 起動
@@ -170,8 +174,19 @@ final class AppEnvironment {
 
     /// 読み上げ。設定で OFF のときは何もしない。
     func speak(_ text: String, locale: RecognitionLocale = .japanese) {
-        guard settings.voiceGuidanceEnabled, settings.volume > 0.01 else { return }
-        speechSynthesizer.speak(text, locale: locale, volume: settings.volume)
+        speak(text, locale: locale, completion: nil)
+    }
+
+    /// 読み上げて、読み終えたら `completion` を呼ぶ。
+    /// 設定で OFF のときは読み上げず、すぐに `completion` を呼ぶ。
+    /// 読み上げの直後にマイクを開く、という順番を守るために使う
+    /// （同時に開くと、自分の声を聞き取ってしまう）。
+    func speak(_ text: String, locale: RecognitionLocale = .japanese, completion: (() -> Void)?) {
+        guard settings.voiceGuidanceEnabled, settings.volume > 0.01 else {
+            completion?()
+            return
+        }
+        speechSynthesizer.speak(text, locale: locale, volume: settings.volume, completion: completion)
     }
 
     func stopSpeaking() {
@@ -254,10 +269,8 @@ final class AppEnvironment {
     private func apply(outcome: LearningResultOutcome) {
         progress = outcome.summary
         unlockedItemIDs = historyStore.unlockedItemIDs()
-        if !outcome.newlyUnlocked.isEmpty {
-            pendingUnlocks.append(contentsOf: outcome.newlyUnlocked)
-            play(.unlock)
-        }
+        // 新しく解放されたものは、ここでは知らせない。
+        // その日の遊び終わり（きょうは おしまい）にまとめて見せる。
     }
 
     func refreshProgress() {
@@ -271,10 +284,23 @@ final class AppEnvironment {
         unlockedItemIDs = historyStore.unlockedItemIDs()
     }
 
-    func consumePendingUnlocks() -> [UnlockableItem] {
-        let items = pendingUnlocks
-        pendingUnlocks = []
-        return items
+    // MARK: - きょうは おしまい
+
+    /// その日のまとめ（前回のおしまい以降の★・問題数・新しく解放されたもの）。
+    func makeDayEndSummary() -> DayEndSummary {
+        dayEndSummarizer.summarize(
+            sessions: historyStore.sessions(),
+            attempts: historyStore.attempts(),
+            unlocks: historyStore.unlockRecords(),
+            lastDayEnd: lastDayEndAt,
+            now: clock.now
+        )
+    }
+
+    /// 「きょうは おしまい」をした。次のまとめは、ここから先のぶんになる。
+    func finishDay() {
+        lastDayEndAt = clock.now
+        settingsStore.saveDayEndDate(lastDayEndAt)
     }
 
     // MARK: - コレクション

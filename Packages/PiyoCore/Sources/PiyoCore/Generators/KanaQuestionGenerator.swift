@@ -90,7 +90,10 @@ public struct KanaWriteQuestionGenerator: QuestionGenerating {
             spokenText: task == .trace
                 ? "「\(card.hiragana)」を ゆびで なぞってみよう"
                 : "「\(card.hiragana)」を かいてみよう",
-            hintText: "うすい もじの うえを なぞってね"
+            // かきとりでは、ヒントを出す 2 回目にだけ うすい お手本が出る（TraceTemplatePolicy）。
+            hintText: task == .trace
+                ? "うすい もじの うえを なぞってね"
+                : "うすい もじを だしたよ。うえを なぞってね"
         )
         return Question(
             skill: skill,

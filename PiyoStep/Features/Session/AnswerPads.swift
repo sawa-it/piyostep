@@ -278,14 +278,10 @@ struct TracePanel: View {
         return AnswerGrader.correctAnswerDisplay(for: question)
     }
 
+    /// かきとりでは お手本を出さない。まちがえて 2 回目に入ったときだけ、ヒントとして出す。
     private var showsTemplate: Bool {
         guard let question = model.currentQuestion else { return true }
-        switch question.content {
-        case .kanaCard(_, let task), .alphabetCard(_, let task, _):
-            return task == .trace
-        default:
-            return true
-        }
+        return TraceTemplatePolicy.showsTemplate(for: question.content, hintShown: model.showsHint)
     }
 
     var body: some View {
@@ -328,91 +324,57 @@ struct TracePanel: View {
     }
 }
 
-/// 音声で答える。マイク・波形・キャラクターの反応をまとめる。
-struct VoiceAnswerPanel: View {
+/// 聞き取り中のしるし。ボタンではない。
+///
+/// 問題を読み上げ終えると自動でマイクが開き、答え待ちのあいだ ずっと聞いている。
+/// 「マイクを押してから話す」も「音声モードに切り替える」も幼児にはできないので、
+/// 押すものは置かず、いま聞いていることだけを キャラクターと波形で見せる。
+struct ListeningIndicatorView: View {
     @Environment(AppEnvironment.self) private var environment
-    @Environment(\.piyoLayout) private var layout
     @Bindable var model: SessionViewModel
 
     private var isListening: Bool {
-        model.voiceState.isListening
+        model.isListening
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 14) {
-                CharacterArtView(
-                    character: environment.buddyCharacter,
-                    mood: isListening ? .listening : .idle,
-                    size: 84
-                )
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(model.voiceGuidanceText)
-                        .piyoFont(.headline)
+        HStack(spacing: 12) {
+            CharacterArtView(
+                character: environment.buddyCharacter,
+                mood: isListening ? .listening : .idle,
+                size: 56
+            )
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: isListening ? "ear.fill" : "ear")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(isListening ? PiyoTheme.primaryDeep : PiyoTheme.textSoft)
+                    Text(isListening ? "きいているよ" : "こえでも こたえられるよ")
+                        .piyoFont(.body)
                         .foregroundStyle(PiyoTheme.text)
                         .minimumScaleFactor(0.6)
-                        .lineLimit(2)
-                        .accessibilityIdentifier(A11yID.sessionVoiceStatus)
-                    if !model.voiceTranscript.isEmpty {
-                        Text(model.voiceTranscript)
-                            .piyoFont(.caption)
-                            .foregroundStyle(PiyoTheme.textSoft)
-                            .lineLimit(1)
-                    }
+                        .lineLimit(1)
                 }
-                Spacer(minLength: 0)
-            }
-
-            VoiceWaveformView(level: model.voiceLevel, isListening: isListening)
-
-            micButton
-
-            if model.shouldSuggestTapAnswer {
-                Button {
-                    model.answerMode = .choice
-                    model.stopVoice()
-                } label: {
-                    Text("タップで こたえる")
-                        .piyoFont(.body)
-                        .foregroundStyle(PiyoTheme.primaryDeep)
-                        .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(64)))
-                        .background(Capsule().fill(PiyoTheme.primary.opacity(0.14)))
+                if !model.voiceTranscript.isEmpty {
+                    Text(model.voiceTranscript)
+                        .piyoFont(.caption)
+                        .foregroundStyle(PiyoTheme.textSoft)
+                        .lineLimit(1)
                 }
-                .buttonStyle(.plain)
             }
+            Spacer(minLength: 0)
+            VoiceWaveformView(level: model.voiceLevel, isListening: isListening, barCount: 5)
+                .frame(width: 64)
+                .opacity(isListening ? 1 : 0.35)
         }
-    }
-
-    /// マイクは指で押すものなので、狭い画面でも小さくしすぎない。
-    private var micSize: CGFloat { CGFloat(max(120, layout.artSized(132))) }
-
-    private var micButton: some View {
-        Button {
-            if isListening {
-                model.stopVoice()
-            } else {
-                model.startVoice()
-            }
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(isListening ? PiyoTheme.primaryDeep : PiyoTheme.primary)
-                    .frame(width: micSize, height: micSize)
-                    .shadow(color: PiyoTheme.primary.opacity(0.45), radius: isListening ? 24 : 12, y: 6)
-                if isListening {
-                    Circle()
-                        .stroke(PiyoTheme.primary.opacity(0.45), lineWidth: 8)
-                        .frame(width: micSize + CGFloat(model.voiceLevel) * 60, height: micSize + CGFloat(model.voiceLevel) * 60)
-                        .animation(.easeOut(duration: 0.18), value: model.voiceLevel)
-                }
-                Image(systemName: isListening ? "waveform" : "mic.fill")
-                    .font(.system(size: 54, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-            .frame(height: micSize * 1.33)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(A11yID.sessionVoiceButton)
-        .accessibilityLabel(isListening ? "きいているよ" : "マイク")
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            Capsule().fill(isListening ? PiyoTheme.primary.opacity(0.12) : PiyoTheme.surface.opacity(0.8))
+        )
+        .animation(.easeInOut(duration: 0.25), value: isListening)
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(A11yID.sessionVoiceStatus)
+        .accessibilityLabel(model.voiceGuidanceText)
     }
 }

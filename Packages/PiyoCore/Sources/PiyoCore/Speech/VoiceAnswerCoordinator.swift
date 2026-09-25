@@ -34,7 +34,8 @@ public final class VoiceAnswerCoordinator {
         consecutiveUnclearCount >= SpeechAnswerPolicy.unclearStreakBeforeFallback
     }
 
-    /// マイクボタンが押されたときに遷移する状態を返す。
+    /// 聞き取りを始めるときに遷移する状態を返す。
+    /// マイクのボタンは無く、問題を読み上げたあとに自動で呼ばれる。
     public func begin(
         authorization: SpeechAuthorizationStatus,
         isAvailable: Bool
@@ -130,11 +131,11 @@ public final class VoiceAnswerCoordinator {
     public var guidanceText: String {
         switch state {
         case .idle:
-            return "マイクを おして はなしてね"
+            return "こえでも こたえられるよ"
         case .requestingPermission:
             return "マイクを つかっても いい？"
         case .listening:
-            return "はなしてね"
+            return "きいているよ"
         case .processing:
             return "きいているよ…"
         case .finished(let judgement):

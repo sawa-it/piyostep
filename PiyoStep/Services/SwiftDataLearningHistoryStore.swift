@@ -91,6 +91,14 @@ final class SwiftDataLearningHistoryStore: LearningHistoryStoring {
         persist()
     }
 
+    func unlockRecords() -> [UnlockRecord] {
+        let entities: [UnlockEntity] = fetch(
+            sortBy: [SortDescriptor(\UnlockEntity.unlockedAt, order: .forward)],
+            limit: nil
+        )
+        return entities.map { UnlockRecord(itemID: $0.itemID, unlockedAt: $0.unlockedAt) }
+    }
+
     // MARK: - 共通
 
     private func fetch<T: PersistentModel>(sortBy: [SortDescriptor<T>], limit: Int?) -> [T] {

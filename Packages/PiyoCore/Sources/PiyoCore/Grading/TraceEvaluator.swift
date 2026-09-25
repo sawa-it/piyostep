@@ -150,3 +150,23 @@ public enum TraceEvaluator {
         }
     }
 }
+
+/// なぞり書きキャンバスに「うすい お手本」を出すかどうか。
+///
+/// - なぞり（trace）: いつも出す。
+/// - かきとり（write）: ふだんは出さない。まちがえて 2 回目に入ったときだけ、ヒントとして出す。
+///   ヒント文が「うすい もじの うえを なぞってね」なのに お手本が無い、という食い違いを防ぐ。
+public enum TraceTemplatePolicy {
+    public static func showsTemplate(for content: QuestionContent, hintShown: Bool) -> Bool {
+        switch content {
+        case .kanaCard(_, let task), .alphabetCard(_, let task, _):
+            switch task {
+            case .trace: return true
+            case .write: return hintShown
+            case .read: return true
+            }
+        case .clockRead, .clockSet, .countObjects, .numberRead, .placeValue, .kanaWord, .englishWord:
+            return true
+        }
+    }
+}

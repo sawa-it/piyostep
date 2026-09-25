@@ -24,6 +24,7 @@ public enum A11yID {
     public static let homeSubject = "home.subject"                  // + subject.rawValue
     public static let homeStarCount = "home.starCount"
     public static let homeAppName = "home.appName"
+    public static let homeDayEnd = "home.dayEnd"
 
     // じぶんの アイコン
     public static let avatar = "avatar"
@@ -40,7 +41,7 @@ public enum A11yID {
     public static let sessionNumberPadDigit = "session.numberPad.digit"  // + digit
     public static let sessionNumberPadSubmit = "session.numberPad.submit"
     public static let sessionNumberPadClear = "session.numberPad.clear"
-    public static let sessionVoiceButton = "session.voiceButton"
+    /// 聞き取り中のしるし（ボタンではない。読み上げが終わると自動で聞き始める）
     public static let sessionVoiceStatus = "session.voiceStatus"
     public static let sessionFeedback = "session.feedback"
     public static let sessionNext = "session.next"
@@ -53,12 +54,12 @@ public enum A11yID {
     public static let sessionTraceCanvas = "session.trace.canvas"
     public static let sessionTraceSubmit = "session.trace.submit"
     public static let sessionTraceClear = "session.trace.clear"
-    public static let sessionModePicker = "session.modePicker"       // + mode.rawValue
 
-    // 結果
-    public static let result = "result.root"
-    public static let resultStars = "result.stars"
-    public static let resultDone = "result.done"
+    // きょうは おしまい（その日の★とアンロックをまとめて受け取る）
+    public static let dayEnd = "dayEnd.root"
+    public static let dayEndStars = "dayEnd.stars"
+    public static let dayEndUnlock = "dayEnd.unlock"                // + item.id
+    public static let dayEndDone = "dayEnd.done"
 
     // ご飯タイマー
     public static let mealSetup = "meal.setup"

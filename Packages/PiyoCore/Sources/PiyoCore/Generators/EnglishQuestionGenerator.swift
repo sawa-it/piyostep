@@ -62,8 +62,13 @@ public struct AlphabetWriteQuestionGenerator: QuestionGenerating {
 
         let prompt = Prompt(
             displayText: task == .trace ? "なぞってみよう" : "かいてみよう",
-            spokenText: "\(card.letterName) を なぞってみよう",
-            hintText: "うすい もじの うえを なぞってね"
+            spokenText: task == .trace
+                ? "\(card.letterName) を なぞってみよう"
+                : "\(card.letterName) を かいてみよう",
+            // かきとりでは、ヒントを出す 2 回目にだけ うすい お手本が出る（TraceTemplatePolicy）。
+            hintText: task == .trace
+                ? "うすい もじの うえを なぞってね"
+                : "うすい もじを だしたよ。うえを なぞってね"
         )
         return Question(
             skill: skill,

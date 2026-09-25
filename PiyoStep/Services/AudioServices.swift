@@ -5,17 +5,23 @@ import UIKit
 import PiyoCore
 
 /// AVSpeechSynthesizer による読み上げ。
-final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing {
+final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
+    /// 読み終えたら呼ぶもの。途中で止めたときは呼ばずに捨てる。
+    private var completions: [ObjectIdentifier: () -> Void] = [:]
 
     var isSpeaking: Bool { synthesizer.isSpeaking }
 
     override init() {
         super.init()
+        synthesizer.delegate = self
     }
 
-    func speak(_ text: String, locale: RecognitionLocale, volume: Double) {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    func speak(_ text: String, locale: RecognitionLocale, volume: Double, completion: (() -> Void)?) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            completion?()
+            return
+        }
         stop()
         configureSessionForPlayback()
 
@@ -26,13 +32,29 @@ final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing {
         utterance.pitchMultiplier = 1.1
         utterance.volume = Float(min(max(volume, 0), 1))
         utterance.preUtteranceDelay = 0.05
+        if let completion {
+            completions[ObjectIdentifier(utterance)] = completion
+        }
         synthesizer.speak(utterance)
     }
 
     func stop() {
+        // 止めた読み上げの「読み終えたら」は、もう意味がないので捨てる。
+        completions.removeAll()
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
+    }
+
+    // MARK: - AVSpeechSynthesizerDelegate
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        guard let completion = completions.removeValue(forKey: ObjectIdentifier(utterance)) else { return }
+        DispatchQueue.main.async(execute: completion)
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        completions.removeValue(forKey: ObjectIdentifier(utterance))
     }
 
     private func configureSessionForPlayback() {

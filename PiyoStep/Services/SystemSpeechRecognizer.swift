@@ -9,8 +9,10 @@ final class SystemSpeechRecognizer: NSObject, SpeechRecognizing {
 
     /// 発話が途切れてから結果を確定するまでの待ち時間
     private let silenceTimeout: TimeInterval = 1.6
-    /// 1 回の聞き取りの上限
-    private let maximumDuration: TimeInterval = 8.0
+    /// 1 回の聞き取りの上限。
+    /// マイクは押さずに開きっぱなしにするので、黙っている間もこの長さまでは
+    /// 静かに待ち、切れたら呼び出し側がまた開く。
+    private let maximumDuration: TimeInterval = 20.0
 
     private let audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -141,8 +143,9 @@ final class SystemSpeechRecognizer: NSObject, SpeechRecognizing {
             }
         }
 
+        // 無音のタイマーは、はじめて声を拾ってから動かす。
+        // 開いた直後から数えると、考えている子どもを 1.6 秒で締め切ってしまう。
         scheduleMaximumTimer()
-        scheduleSilenceTimer()
     }
 
     func stopListening() {

@@ -67,7 +67,7 @@ final class PiyoStepUITests: XCTestCase {
 
     // MARK: - 今日のチャレンジ
 
-    func testDailyChallengeRunsToTheEnd() {
+    func testDailyChallengeRunsToTheEndAndReturnsHome() {
         let app = UITest.launch()
         app.tappable(A11yID.homeDailyChallenge).waitAndTap()
 
@@ -75,9 +75,10 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertTrue(app.element(id: A11yID.sessionPrompt).waitUntilExists())
 
         // どの教科が出ても答えられるようにしてある。
+        // 最後の問題を終えると、結果画面を挟まずにホームへ戻る。
         var guardCount = 0
         var stuck = 0
-        while !app.element(id: A11yID.result).exists && guardCount < 60 {
+        while app.element(id: A11yID.session).exists && guardCount < 60 {
             guardCount += 1
             if app.answerCurrentQuestion(timeout: 3) {
                 stuck = 0
@@ -90,13 +91,43 @@ final class PiyoStepUITests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(
-            app.element(id: A11yID.resultStars).waitUntilExists(),
-            "チャレンジが結果画面まで到達しない / \(app.screenSummary())"
+        let deadline = Date().addingTimeInterval(UITest.defaultTimeout)
+        while app.element(id: A11yID.session).exists, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTAssertFalse(
+            app.element(id: A11yID.session).exists,
+            "チャレンジを終えてもホームに戻らない / \(app.screenSummary())"
         )
-        XCTAssertTrue(app.element(id: A11yID.result).exists, "結果画面として名前が付いていない")
-        app.tappable(A11yID.resultDone).waitAndTap()
+        XCTAssertTrue(app.tappable(A11yID.homeDayEnd).waitUntilExists(), "ホームに「きょうは おしまい」が無い")
+    }
+
+    // MARK: - きょうは おしまい
+
+    func testDayEndShowsTodaysStarsAndReturnsHome() {
+        let app = UITest.launch()
+
+        // 1 問だけ解いて★を手に入れておく
+        app.tappable("\(A11yID.homeSubject)number").waitAndTap()
+        app.tappable("\(A11yID.subjectSkill)numberCount").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+        XCTAssertTrue(app.answerCurrentQuestion(), "1 問目に答えられない")
+        XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
+        app.tappable(A11yID.sessionClose).waitAndTap()
+        app.buttons["ホームに もどる"].waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+
+        // ★は毎回ではなく、ここでまとめて受け取る
+        app.tappable(A11yID.homeDayEnd).waitAndTap()
+        XCTAssertTrue(
+            app.element(id: A11yID.dayEnd).waitUntilExists(),
+            "おしまいの画面が出ない / \(app.screenSummary(prefix: "dayEnd."))"
+        )
+        XCTAssertTrue(app.element(id: A11yID.dayEndStars).waitUntilExists())
+
+        app.tappable(A11yID.dayEndDone).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+        XCTAssertFalse(app.element(id: A11yID.dayEnd).exists)
     }
 
     func testAnsweringMovesToTheNextQuestion() {
@@ -176,26 +207,22 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
     }
 
-    func testClockReadingGameOffersSeveralAnswerModes() {
+    func testClockReadingGameHasNoModeSwitching() {
         let app = UITest.launch()
         app.tappable("\(A11yID.homeSubject)clock").waitAndTap()
         app.tappable("\(A11yID.subjectSkill)clockRead").waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
 
-        XCTAssertTrue(app.tappable("\(A11yID.sessionModePicker)choice").waitUntilExists())
-        XCTAssertTrue(app.tappable("\(A11yID.sessionModePicker)numberPad").exists)
-
-        // 数字入力に切り替えて答える
-        XCTAssertTrue(app.switchAnswerMode(to: "numberPad"), "数字入力に切り替えられない")
-
-        // モード切替後にパッドが組み上がるまで待つ
-        let digit = app.element(id: "\(A11yID.sessionNumberPadDigit)3")
+        // 回答のしかたを切り替える UI は無い。タップで答えるものが 1 つだけ出る。
         XCTAssertTrue(
-            digit.waitForExistence(timeout: UITest.defaultTimeout),
-            "数字パッドが出ない / \(app.screenSummary(prefix: "session."))"
+            app.tappable("\(A11yID.sessionChoice)0").waitUntilExists(),
+            "選択肢が出ない / \(app.screenSummary(prefix: "session."))"
         )
-        digit.waitAndTap()
-        app.tappable(A11yID.sessionNumberPadSubmit).waitAndTap()
+        XCTAssertFalse(app.element(id: "\(A11yID.sessionNumberPadDigit)3").exists)
+        XCTAssertFalse(app.element(id: "session.modePicker.choice").exists, "切り替えボタンが残っている")
+        XCTAssertFalse(app.element(id: "session.voiceButton").exists, "マイクのボタンが残っている")
+
+        app.tappable("\(A11yID.sessionChoice)0").waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
     }
 
@@ -232,25 +259,24 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
     }
 
-    // MARK: - 音声回答
+    // MARK: - 音声回答（押すものは無い）
 
-    func testVoiceAnswerWithScriptedRecogniser() {
+    func testVoiceAnswerIsHeardWithoutPressingAnything() {
         let app = UITest.launch(voiceScript: "さん")
         app.tappable("\(A11yID.homeSubject)number").waitAndTap()
         app.tappable("\(A11yID.subjectSkill)numberCount").waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
 
-        app.tappable("\(A11yID.sessionModePicker)voice").waitAndTap()
-        XCTAssertTrue(app.element(id: A11yID.sessionVoiceStatus).waitUntilExists())
+        // マイクのボタンも「こえ」への切り替えも無く、聞いているしるしだけが出る
+        XCTAssertTrue(
+            app.element(id: A11yID.sessionVoiceStatus).waitUntilExists(),
+            "聞き取り中のしるしが出ない / \(app.screenSummary(prefix: "session."))"
+        )
 
-        app.tappable(A11yID.sessionVoiceButton).waitAndTap()
-        // 「はなしてね」が出ること
-        XCTAssertTrue(app.element(id: A11yID.sessionVoiceStatus).waitUntilExists())
-
-        // モック認識が結果を返すとフィードバックに進む
+        // 何も押さなくても、モック認識が結果を返すとフィードバックに進む
         XCTAssertTrue(
             app.element(id: A11yID.sessionFeedback).waitForExistence(timeout: UITest.defaultTimeout),
-            "音声回答が判定されない"
+            "音声回答が判定されない / \(app.screenSummary(prefix: "session."))"
         )
     }
 

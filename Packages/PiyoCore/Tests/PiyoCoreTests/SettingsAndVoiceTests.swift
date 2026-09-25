@@ -175,7 +175,7 @@ final class VoiceAnswerCoordinatorTests: XCTestCase {
         let coordinator = VoiceAnswerCoordinator()
         XCTAssertEqual(coordinator.begin(authorization: .authorized, isAvailable: true), .listening)
         XCTAssertTrue(coordinator.state.isListening)
-        XCTAssertEqual(coordinator.guidanceText, "はなしてね")
+        XCTAssertEqual(coordinator.guidanceText, "きいているよ")
     }
 
     func testNotDeterminedAsksForPermissionFirst() {

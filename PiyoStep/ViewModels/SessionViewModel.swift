@@ -31,7 +31,9 @@ final class SessionViewModel {
     private(set) var summary: SessionSummary?
     private(set) var currentIndex: Int = 0
 
-    /// いま選ばれている回答方法
+    /// 画面に出している回答のしかた（タップで答えるもの）。
+    /// 音声は「しかた」のひとつではなく、問題を読み上げたあと いつも横で聞いている。
+    /// 幼児は回答方法を切り替えられないので、切り替える UI は置かない。
     var answerMode: AnswerMode = .choice
     /// 数字入力
     var numberInput: String = ""
@@ -56,6 +58,15 @@ final class SessionViewModel {
     private(set) var voiceLevel: Double = 0
     private(set) var voiceTranscript: String = ""
     private var levelTimer: Timer?
+    /// 聞き取りをやり直す予約
+    private var relistenWorkItem: DispatchWorkItem?
+    /// マイクが開けないなどの失敗が続いた回数。多いときはこの問題では諦める。
+    private var consecutiveListenFailures = 0
+    /// いまの聞き取りの番号。古い聞き取りの結果が遅れて届いても無視するため。
+    private var listenToken = 0
+    /// 問題ごとに 1 回だけ「聞き始めた」合図の音を出す。
+    private var hasPlayedListenCue = false
+    private var isClosed = false
 
     init(environment: AppEnvironment, kind: SessionKind, subject: Subject?, questions: [Question]) {
         self.environment = environment
@@ -100,6 +111,7 @@ final class SessionViewModel {
     }
 
     func close() {
+        isClosed = true
         stopVoice()
         environment.adPresenter.isLearningSessionActive = false
         environment.stopSpeaking()
@@ -139,13 +151,20 @@ final class SessionViewModel {
         speakPrompt(includeHint: true)
     }
 
+    /// 問題を読み上げ、読み終えたらマイクを開く。
+    /// 読み上げ中はマイクを閉じておく（自分の声を答えとして拾わないように）。
     func speakPrompt(includeHint: Bool = false) {
         guard let question = currentQuestion else { return }
         var text = question.prompt.spokenText
         if includeHint, let hint = question.prompt.hintText {
             text += " " + hint
         }
-        environment.speak(text, locale: question.answer.locale == .englishUS ? .englishUS : .japanese)
+        stopVoice()
+        let token = listenToken
+        environment.speak(text, locale: question.answer.locale == .englishUS ? .englishUS : .japanese) { [weak self] in
+            guard let self, token == self.listenToken else { return }
+            self.listenIfPossible()
+        }
     }
 
     /// 選択肢や文字を読み上げる（子どもが文字を読めなくても分かるように）。
@@ -169,9 +188,13 @@ final class SessionViewModel {
         voiceCoordinator.reset()
         voiceState = .idle
         voiceTranscript = ""
+        consecutiveListenFailures = 0
+        hasPlayedListenCue = false
 
         if let question = currentQuestion {
-            answerMode = availableModes.first ?? question.answerModes.first ?? .choice
+            answerMode = availableModes.first(where: { $0 != .voice })
+                ?? question.answerModes.first(where: { $0 != .voice })
+                ?? .choice
             if case let .clockSet(_, start, _) = question.content {
                 draggedTime = start
             } else {
@@ -183,12 +206,16 @@ final class SessionViewModel {
         }
     }
 
+    /// 最後の問題を終えた。結果画面は出さず、ひとこと ねぎらってホームへ戻る。
+    /// ★やアンロックは「きょうは おしまい」でまとめて受け取る。
     private func finish(with result: SessionSummary) {
+        stopVoice()
         summary = result
         stage = .finished
         environment.adPresenter.isLearningSessionActive = false
         environment.process(summary: result)
         environment.play(.star)
+        environment.speak(result.childMessage)
     }
 
     // MARK: - 回答
@@ -258,7 +285,9 @@ final class SessionViewModel {
     }
 
     private func submit(_ input: AnswerInput) {
-        guard currentQuestion != nil else { return }
+        guard currentQuestion != nil, stage == .asking else { return }
+        // 答えが決まったらマイクを閉じる。遅れて届く聞き取り結果も無視する。
+        stopVoice()
         let result = engine.submit(input)
         feedback = result
         stage = .feedback
@@ -285,17 +314,33 @@ final class SessionViewModel {
             && environment.canUseVoice(for: question.answer.locale)
     }
 
-    var shouldSuggestTapAnswer: Bool {
-        voiceCoordinator.shouldSuggestTapAnswer
+    /// いまマイクが開いているか（画面の「きいているよ」のしるしに使う）。
+    var isListening: Bool {
+        voiceState.isListening
+    }
+
+    /// 「きいているよ」のしるしを出すか。
+    /// 許可が無い・端末が対応していないときは、出しても嘘になるので出さない。
+    var showsListeningIndicator: Bool {
+        guard isVoiceAvailable else { return false }
+        if case .unavailable = voiceState { return false }
+        return true
     }
 
     var voiceGuidanceText: String {
         voiceCoordinator.guidanceText
     }
 
+    /// 問題を読み終えたあと、問題がまだ答え待ちなら自動でマイクを開く。
+    /// マイクのボタンは無い。幼児に「押してから話す」はできないため。
+    private func listenIfPossible() {
+        guard !isClosed, stage == .asking, isVoiceAvailable else { return }
+        startVoice()
+    }
+
+    /// マイクを開く。ふつうは読み上げの完了から自動で呼ばれる。
     func startVoice() {
-        guard let question = currentQuestion else { return }
-        environment.stopSpeaking()
+        guard let question = currentQuestion, stage == .asking, !isClosed else { return }
 
         let locale = question.answer.locale
         let recognizer = environment.speechRecognizer
@@ -303,28 +348,27 @@ final class SessionViewModel {
             authorization: recognizer.authorizationStatus,
             isAvailable: recognizer.isAvailable(for: locale)
         )
-        voiceState = state
 
         switch state {
-        case .requestingPermission:
-            recognizer.requestAuthorization { [weak self] status in
-                Task { @MainActor in
-                    guard let self else { return }
-                    self.voiceState = self.voiceCoordinator.handleAuthorization(status)
-                    if self.voiceState == .listening {
-                        self.beginListening(locale: locale)
-                    }
-                }
-            }
         case .listening:
+            voiceState = state
             beginListening(locale: locale)
-        default:
-            break
+        case .requestingPermission:
+            // 許可はオンボーディングで頼む。答える場面でダイアログを割り込ませない。
+            // 断られていれば、そのままタップで答えられる。
+            voiceState = .unavailable(.notDetermined)
+        case .idle, .processing, .finished, .unavailable:
+            voiceState = state
         }
     }
 
     private func beginListening(locale: RecognitionLocale) {
-        environment.play(.listenStart)
+        listenToken += 1
+        let token = listenToken
+        if !hasPlayedListenCue {
+            hasPlayedListenCue = true
+            environment.play(.listenStart)
+        }
         voiceTranscript = ""
         startLevelTimer()
 
@@ -332,7 +376,7 @@ final class SessionViewModel {
             locale: locale,
             onResult: { [weak self] result in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, token == self.listenToken else { return }
                     if result.isFinal {
                         self.handleFinalTranscript(result)
                     } else {
@@ -343,12 +387,18 @@ final class SessionViewModel {
             },
             onFailure: { [weak self] failure in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, token == self.listenToken else { return }
                     self.stopLevelTimer()
                     self.voiceState = self.voiceCoordinator.handleFailure(failure)
-                    self.environment.play(.listenEnd)
-                    if case .finished(.unclear) = self.voiceState {
-                        self.environment.speak(self.voiceCoordinator.retryMessage())
+                    switch failure {
+                    case .notAuthorized, .unavailable:
+                        // この問題では使えない。タップで答えられるので何も言わない。
+                        break
+                    case .noSpeechDetected:
+                        // 黙っていただけ。静かに聞き直す。
+                        self.scheduleRelisten(afterFailure: false)
+                    case .audioEngineFailed, .cancelled, .other:
+                        self.scheduleRelisten(afterFailure: true)
                     }
                 }
             }
@@ -356,10 +406,10 @@ final class SessionViewModel {
     }
 
     private func handleFinalTranscript(_ result: SpeechRecognitionResult) {
-        guard let question = currentQuestion else { return }
+        guard let question = currentQuestion, stage == .asking else { return }
         stopLevelTimer()
-        environment.play(.listenEnd)
         voiceTranscript = result.transcript
+        consecutiveListenFailures = 0
 
         let evaluation = voiceCoordinator.handleFinal(
             transcript: result.transcript,
@@ -370,13 +420,34 @@ final class SessionViewModel {
 
         if evaluation.judgement == .unclear {
             // 認識できなかっただけなので、学習の不正解にはしない。
-            environment.speak(voiceCoordinator.retryMessage())
+            // まわりの話し声も拾うので、いちいち言い返さず静かに聞き直す。
+            scheduleRelisten(afterFailure: false)
             return
         }
+        environment.play(.listenEnd)
         submit(.speech(transcript: result.transcript, confidence: result.confidence))
     }
 
+    /// 少し間をおいてから、また聞き始める。
+    private func scheduleRelisten(afterFailure: Bool) {
+        if afterFailure {
+            consecutiveListenFailures += 1
+            // マイクが開けないのを繰り返しても仕方がないので、この問題では諦める。
+            guard consecutiveListenFailures < 3 else { return }
+        }
+        relistenWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.listenIfPossible()
+        }
+        relistenWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: item)
+    }
+
+    /// マイクを閉じる。遅れて届く結果は、番号が変わるので無視される。
     func stopVoice() {
+        relistenWorkItem?.cancel()
+        relistenWorkItem = nil
+        listenToken += 1
         stopLevelTimer()
         environment.speechRecognizer.stopListening()
         if case .listening = voiceState {

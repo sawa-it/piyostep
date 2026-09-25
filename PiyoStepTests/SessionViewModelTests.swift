@@ -198,44 +198,102 @@ final class SessionViewModelTests: XCTestCase {
         XCTAssertGreaterThan(environment.progress.totalStars, 0)
     }
 
+    // MARK: - 音声（ボタンは無く、読み上げのあと自動で聞く）
+
+    func testListeningStartsByItselfAfterThePrompt() {
+        let recognizer = MockSpeechRecognizer(
+            script: [SpeechRecognitionResult(transcript: "さん", confidence: 0.9, isFinal: true)]
+        )
+        let environment = TestEnvironment.make(recognizer: recognizer)
+        let model = makeModel(
+            environment: environment,
+            questions: [TestEnvironment.integerQuestion(correct: 3)]
+        )
+        XCTAssertTrue(model.isVoiceAvailable)
+        XCTAssertNotEqual(model.answerMode, .voice, "画面に出すのはタップで答えるもの")
+
+        // マイクのボタンを押さなくても、読み上げが終わると聞き始めて判定まで進む
+        TestEnvironment.wait(until: { model.stage == .feedback })
+        XCTAssertGreaterThanOrEqual(recognizer.startCount, 1, "自動で聞き始めていない")
+        XCTAssertEqual(model.feedback?.judgement, .correct)
+    }
+
     func testVoiceAnswerFlowWithScriptedRecogniser() {
         let environment = TestEnvironment.make(voiceScript: ["さん"])
         let model = makeModel(
             environment: environment,
             questions: [TestEnvironment.integerQuestion(correct: 3)]
         )
-        model.answerMode = .voice
-        XCTAssertTrue(model.isVoiceAvailable)
-
-        model.startVoice()
         TestEnvironment.wait(until: { model.stage == .feedback })
-
         XCTAssertEqual(model.feedback?.judgement, .correct)
     }
 
-    func testUnrecognisedSpeechDoesNotCountAsWrong() {
-        let store = InMemoryLearningHistoryStore()
-        let environment = TestEnvironment.make(
-            voiceScript: ["わかんない"],
-            historyStore: store
+    func testListeningWaitsUntilThePromptHasBeenRead() {
+        let synthesizer = MockSpeechSynthesizer()
+        synthesizer.completionDelay = 0.4
+        let recognizer = MockSpeechRecognizer(
+            script: [SpeechRecognitionResult(transcript: "さん", confidence: 0.9, isFinal: true)]
         )
+        let environment = TestEnvironment.make(synthesizer: synthesizer, recognizer: recognizer)
         let model = makeModel(
             environment: environment,
             questions: [TestEnvironment.integerQuestion(correct: 3)]
         )
-        model.answerMode = .voice
-        model.startVoice()
+        // 読み上げ中はマイクを開かない（自分の声を拾わないように）
+        XCTAssertEqual(recognizer.startCount, 0)
+        XCTAssertFalse(model.isListening)
 
-        TestEnvironment.wait(until: { model.voiceState == .finished(.unclear) })
+        TestEnvironment.wait(until: { model.stage == .feedback })
+        XCTAssertEqual(recognizer.startCount, 1)
+    }
+
+    func testUnrecognisedSpeechDoesNotCountAsWrongAndKeepsListening() {
+        let store = InMemoryLearningHistoryStore()
+        let recognizer = MockSpeechRecognizer(
+            script: [SpeechRecognitionResult(transcript: "わかんない", confidence: 0.9, isFinal: true)]
+        )
+        let environment = TestEnvironment.make(historyStore: store, recognizer: recognizer)
+        let model = makeModel(
+            environment: environment,
+            questions: [TestEnvironment.integerQuestion(correct: 3)]
+        )
+
+        // 台本を使い切ったあとは「声なし」になり、静かに聞き直し続ける
+        TestEnvironment.wait(until: { recognizer.startCount >= 2 })
+        XCTAssertGreaterThanOrEqual(recognizer.startCount, 2, "聞き取れなくても聞き直す")
         XCTAssertEqual(model.stage, .asking, "聞き取れなかっただけなので問題は進めない")
         XCTAssertNil(model.feedback)
         XCTAssertTrue(store.attempts().isEmpty, "学習履歴にも不正解として残さない")
     }
 
-    func testVoiceModeIsHiddenWhenTurnedOff() {
+    func testTappingAnAnswerClosesTheMicrophone() {
+        let recognizer = MockSpeechRecognizer(script: [])
+        let environment = TestEnvironment.make(recognizer: recognizer)
+        let question = TestEnvironment.integerQuestion(correct: 3)
+        let model = makeModel(environment: environment, questions: [question])
+        TestEnvironment.wait(until: { recognizer.startCount >= 1 })
+
+        guard let correct = question.choices.first(where: \.isCorrect) else {
+            return XCTFail("正解の選択肢がない")
+        }
+        model.select(choice: correct)
+        XCTAssertEqual(model.stage, .feedback)
+        XCTAssertFalse(model.isListening)
+        XCTAssertGreaterThanOrEqual(recognizer.stopCount, 1)
+
+        // フィードバック中は聞き直さない
+        let stopsBefore = recognizer.startCount
+        TestEnvironment.wait(timeout: 1.0, until: { false })
+        XCTAssertEqual(recognizer.startCount, stopsBefore)
+    }
+
+    func testVoiceIsNotUsedWhenTurnedOff() {
         var settings = AppSettings.default
         settings.voiceAnswerEnabled = false
-        let environment = TestEnvironment.make(settings: settings)
+        let recognizer = MockSpeechRecognizer(
+            script: [SpeechRecognitionResult(transcript: "さん", confidence: 0.9, isFinal: true)]
+        )
+        let environment = TestEnvironment.make(settings: settings, recognizer: recognizer)
         let model = makeModel(
             environment: environment,
             questions: [TestEnvironment.integerQuestion(correct: 3)]
@@ -243,6 +301,61 @@ final class SessionViewModelTests: XCTestCase {
         XCTAssertFalse(model.availableModes.contains(.voice))
         XCTAssertFalse(model.isVoiceAvailable)
         XCTAssertFalse(model.availableModes.isEmpty, "タップ回答は必ず残る")
+
+        TestEnvironment.wait(timeout: 0.5, until: { false })
+        XCTAssertEqual(recognizer.startCount, 0, "設定で OFF ならマイクを開かない")
+        XCTAssertEqual(model.stage, .asking)
+    }
+
+    func testPermissionIsNotAskedWhileAnswering() {
+        let recognizer = MockSpeechRecognizer(
+            authorizationStatus: .notDetermined,
+            script: [SpeechRecognitionResult(transcript: "さん", confidence: 0.9, isFinal: true)]
+        )
+        let environment = TestEnvironment.make(recognizer: recognizer)
+        let model = makeModel(
+            environment: environment,
+            questions: [TestEnvironment.integerQuestion(correct: 3)]
+        )
+        TestEnvironment.wait(timeout: 0.5, until: { false })
+        // 許可はオンボーディングで頼む。答える場面でダイアログを割り込ませない。
+        XCTAssertEqual(recognizer.authorizationStatus, .notDetermined)
+        XCTAssertEqual(recognizer.startCount, 0)
+        XCTAssertEqual(model.stage, .asking)
+    }
+
+    func testWritingShowsTheTemplateOnlyAsAHint() {
+        let environment = TestEnvironment.make()
+        let card = KanaCatalog.teachable[0]
+        let question = Question(
+            skill: .hiraganaWrite,
+            difficulty: DifficultyLevel(5),
+            prompt: Prompt(displayText: "かいてみよう", spokenText: "かいてみよう", hintText: "うすい もじを だしたよ"),
+            content: .kanaCard(card: card, task: .write),
+            answer: .trace(requiredCoverage: 0.9),
+            answerModes: [.trace],
+            choices: []
+        )
+        let model = makeModel(environment: environment, questions: [question])
+        XCTAssertFalse(TraceTemplatePolicy.showsTemplate(for: question.content, hintShown: model.showsHint))
+
+        model.submitTrace()
+        XCTAssertEqual(model.feedback?.judgement, .incorrect)
+        model.retryCurrentQuestion()
+        XCTAssertTrue(model.showsHint)
+        XCTAssertTrue(TraceTemplatePolicy.showsTemplate(for: question.content, hintShown: model.showsHint))
+    }
+
+    func testFinishingReturnsHomeWithoutAResultScreen() {
+        let synthesizer = MockSpeechSynthesizer()
+        let environment = TestEnvironment.make(synthesizer: synthesizer)
+        let model = makeModel(environment: environment, questions: [TestEnvironment.integerQuestion(correct: 3)])
+        model.submitNumberInputDirectly(3)
+        model.advance()
+
+        XCTAssertEqual(model.stage, .finished)
+        XCTAssertNotNil(model.summary)
+        XCTAssertTrue(synthesizer.spokenTexts.contains(model.summary?.childMessage ?? "?"), "ひとこと ねぎらう")
     }
 
     func testAdsAreSuppressedDuringLearning() {

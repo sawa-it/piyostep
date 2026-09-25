@@ -152,34 +152,3 @@ struct SessionProgressBar: View {
         .accessibilityLabel("\(total)もんちゅう \(min(current + 1, total))もんめ")
     }
 }
-
-/// アンロック演出。
-struct UnlockBanner: View {
-    var item: UnlockableItem
-    var onDismiss: () -> Void
-
-    var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "gift.fill")
-                .font(.system(size: 54))
-                .foregroundStyle(PiyoTheme.cheer)
-            Text("あたらしい \(item.category.childTitle)！")
-                .piyoFont(.headline)
-                .foregroundStyle(PiyoTheme.text)
-            Text(item.name)
-                .piyoFont(.title)
-                .foregroundStyle(PiyoTheme.primaryDeep)
-            BigButton(color: PiyoTheme.success, action: onDismiss) {
-                Text("やったー！")
-                    .piyoFont(.headline)
-            }
-        }
-        .padding(28)
-        .background(
-            RoundedRectangle(cornerRadius: PiyoTheme.cornerRadius, style: .continuous)
-                .fill(PiyoTheme.surface)
-                .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
-        )
-        .padding(28)
-    }
-}

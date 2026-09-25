@@ -108,13 +108,48 @@ final class AppEnvironmentTests: XCTestCase {
             }
         )
         environment.process(summary: summary)
-
-        XCTAssertTrue(environment.pendingUnlocks.contains { $0.id == "costume.cap" })
         XCTAssertEqual(environment.progress.totalStars, 12)
 
-        let consumed = environment.consumePendingUnlocks()
-        XCTAssertFalse(consumed.isEmpty)
-        XCTAssertTrue(environment.pendingUnlocks.isEmpty)
+        // 解放されたものは、その場では知らせず「きょうは おしまい」で受け取る
+        let dayEnd = environment.makeDayEndSummary()
+        XCTAssertTrue(dayEnd.newlyUnlocked.contains { $0.id == "costume.cap" })
+        XCTAssertEqual(dayEnd.starsEarned, 12)
+        XCTAssertEqual(dayEnd.questionCount, 6)
+
+        environment.finishDay()
+        XCTAssertNotNil(environment.lastDayEndAt)
+        let after = environment.makeDayEndSummary()
+        XCTAssertTrue(after.newlyUnlocked.isEmpty, "受け取ったものは二度と出さない")
+        XCTAssertEqual(after.starsEarned, 0)
+    }
+
+    func testDayEndDateSurvivesANewEnvironment() {
+        let keyValue = InMemoryKeyValueStore()
+        let settingsStore = CodableSettingsStore(store: keyValue)
+        settingsStore.saveProfile(ChildProfile(nickname: "さくら", age: 5))
+
+        func makeEnvironment() -> AppEnvironment {
+            let environment = AppEnvironment(
+                settingsStore: settingsStore,
+                historyStore: InMemoryLearningHistoryStore(),
+                speechRecognizer: ScriptedSpeechRecognizer(transcripts: []),
+                speechSynthesizer: MockSpeechSynthesizer(),
+                soundPlayer: MockSoundPlayer(),
+                haptics: NoopHapticsService(),
+                purchaseService: MockPurchaseService(),
+                adPresenter: MockAdPresenter(allow: false),
+                launchArguments: TestEnvironment.makeLaunchArguments()
+            )
+            environment.bootstrap()
+            return environment
+        }
+
+        let first = makeEnvironment()
+        XCTAssertNil(first.lastDayEndAt)
+        first.finishDay()
+
+        let second = makeEnvironment()
+        XCTAssertNotNil(second.lastDayEndAt, "おしまいの時刻は保存される")
     }
 
     func testAvailableCharactersStartWithTheFreeOnes() {

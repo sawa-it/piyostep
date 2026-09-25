@@ -12,10 +12,6 @@ struct SessionView: View {
     @State private var model: SessionViewModel?
     @State private var isShowingQuitConfirmation = false
 
-    private var isShowingResult: Bool {
-        model?.stage == .finished && model?.summary != nil
-    }
-
     var body: some View {
         ZStack {
             PiyoBackground(tint: PiyoTheme.color(for: request.subject ?? .number))
@@ -25,9 +21,14 @@ struct SessionView: View {
             }
         }
         .accessibilityElement(children: .contain)
-        // 入れ子のコンテナは潰れてしまうので、結果画面に変わったら名前も入れ替える。
-        // こうしないと「いまどの画面か」が VoiceOver からも UI テストからも分からない。
-        .accessibilityIdentifier(isShowingResult ? A11yID.result : A11yID.session)
+        .accessibilityIdentifier(A11yID.session)
+        // 最後の問題を終えたら、結果画面を挟まずにホームへ戻る。
+        // ★やアンロックは毎回受け取らず、「きょうは おしまい」でまとめて受け取る。
+        .onChange(of: model?.stage) { _, stage in
+            if stage == .finished {
+                dismiss()
+            }
+        }
         .onAppear {
             guard model == nil else { return }
             let created = SessionViewModel(
@@ -48,53 +49,46 @@ struct SessionView: View {
         }
     }
 
-    @ViewBuilder
     private func sessionBody(_ model: SessionViewModel) -> some View {
-        if model.stage == .finished, let summary = model.summary {
-            SessionResultView(summary: summary) {
-                dismiss()
-            }
-        } else {
-            VStack(spacing: 14) {
-                header(model)
-                if layout.usesSideBySideAnswer {
-                    // 横向きは出題を左、回答を右に置く。縦に積むと、
-                    // 高さ 390pt の iPhone 横持ちで回答ボタンが画面の外に出る。
-                    HStack(alignment: .top, spacing: CGFloat(layout.spacing)) {
-                        ScrollView { questionArea(model).padding(.vertical, 4) }
-                        ScrollView { answerArea(model).padding(.vertical, 4) }
+        VStack(spacing: 14) {
+            header(model)
+            if layout.usesSideBySideAnswer {
+                // 横向きは出題を左、回答を右に置く。縦に積むと、
+                // 高さ 390pt の iPhone 横持ちで回答ボタンが画面の外に出る。
+                HStack(alignment: .top, spacing: CGFloat(layout.spacing)) {
+                    ScrollView { questionArea(model).padding(.vertical, 4) }
+                    ScrollView { answerArea(model).padding(.vertical, 4) }
+                }
+                .padding(.horizontal, CGFloat(layout.spacing))
+                .padding(.bottom, 16)
+                .piyoContentWidth(layout)
+            } else {
+                ScrollView {
+                    VStack(spacing: CGFloat(layout.spacing)) {
+                        questionArea(model)
+                        answerArea(model)
                     }
                     .padding(.horizontal, CGFloat(layout.spacing))
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 28)
                     .piyoContentWidth(layout)
-                } else {
-                    ScrollView {
-                        VStack(spacing: CGFloat(layout.spacing)) {
-                            questionArea(model)
-                            answerArea(model)
-                        }
-                        .padding(.horizontal, CGFloat(layout.spacing))
-                        .padding(.bottom, 28)
-                        .piyoContentWidth(layout)
-                    }
                 }
             }
-            .overlay(alignment: .bottom) {
-                if model.stage == .feedback, let feedback = model.feedback {
-                    FeedbackPanel(
-                        feedback: feedback,
-                        character: environment.buddyCharacter,
-                        onRetry: { model.retryCurrentQuestion() },
-                        onNext: { model.advance() }
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .overlay {
-                ConfettiView(isActive: model.showsConfetti)
-            }
-            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.stage)
         }
+        .overlay(alignment: .bottom) {
+            if model.stage == .feedback, let feedback = model.feedback {
+                FeedbackPanel(
+                    feedback: feedback,
+                    character: environment.buddyCharacter,
+                    onRetry: { model.retryCurrentQuestion() },
+                    onNext: { model.advance() }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .overlay {
+            ConfettiView(isActive: model.showsConfetti)
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.stage)
     }
 
     // MARK: - ヘッダー
@@ -173,15 +167,17 @@ struct SessionView: View {
 
     // MARK: - 回答
 
+    /// 回答のしかたは切り替えない。タップで答えるものを 1 つ出し、
+    /// 音声が使える問題では、その横で自動的に聞いている（マイクのボタンは無い）。
     @ViewBuilder
     private func answerArea(_ model: SessionViewModel) -> some View {
         VStack(spacing: 16) {
-            if model.availableModes.count > 1 {
-                AnswerModePicker(model: model)
+            if model.showsListeningIndicator {
+                ListeningIndicatorView(model: model)
             }
 
             switch model.answerMode {
-            case .choice:
+            case .choice, .voice:
                 ChoiceGridView(model: model)
             case .numberPad:
                 if model.currentQuestion?.subject == .clock {
@@ -189,8 +185,6 @@ struct SessionView: View {
                 } else {
                     NumberPadView(model: model)
                 }
-            case .voice:
-                VoiceAnswerPanel(model: model)
             case .dragHands:
                 ClockDragPanel(model: model)
             case .trace:
@@ -199,47 +193,6 @@ struct SessionView: View {
         }
         .disabled(model.stage == .feedback)
         .opacity(model.stage == .feedback ? 0.4 : 1)
-    }
-}
-
-/// 回答方法の切り替え。アイコンで分かるようにする。
-struct AnswerModePicker: View {
-    @Bindable var model: SessionViewModel
-
-    var body: some View {
-        HStack(spacing: 10) {
-            ForEach(model.availableModes, id: \.self) { mode in
-                Button {
-                    model.answerMode = mode
-                    model.stopVoice()
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: icon(for: mode))
-                            .font(.system(size: 22, weight: .bold))
-                        Text(mode.childTitle)
-                            .piyoFont(size: 13, weight: .semibold)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 64)
-                    .foregroundStyle(model.answerMode == mode ? .white : PiyoTheme.textSoft)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(model.answerMode == mode ? PiyoTheme.primary : PiyoTheme.surface)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("\(A11yID.sessionModePicker)\(mode.rawValue)")
-            }
-        }
-    }
-
-    private func icon(for mode: AnswerMode) -> String {
-        switch mode {
-        case .choice: return "hand.tap.fill"
-        case .numberPad: return "number"
-        case .voice: return "mic.fill"
-        case .dragHands: return "hand.draw.fill"
-        case .trace: return "pencil.tip"
-        }
     }
 }
 

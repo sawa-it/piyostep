@@ -132,6 +132,9 @@ public protocol SettingsStoring: AnyObject {
     func save(_ settings: AppSettings)
     func loadProfile() -> ChildProfile?
     func saveProfile(_ profile: ChildProfile?)
+    /// 子どもが最後に「きょうは おしまい」をしたとき。まだなら nil。
+    func loadDayEndDate() -> Date?
+    func saveDayEndDate(_ date: Date?)
 }
 
 /// キーバリューストアの最小インターフェース（UserDefaults などを包む）。
@@ -161,6 +164,7 @@ public final class InMemoryKeyValueStore: KeyValueStoring {
 public final class CodableSettingsStore: SettingsStoring {
     public static let settingsKey = "piyo.settings"
     public static let profileKey = "piyo.profile"
+    public static let dayEndKey = "piyo.dayEnd"
 
     private let store: KeyValueStoring
     private let encoder = JSONEncoder()
@@ -197,5 +201,19 @@ public final class CodableSettingsStore: SettingsStoring {
         }
         guard let data = try? encoder.encode(profile) else { return }
         store.set(data, forKey: CodableSettingsStore.profileKey)
+    }
+
+    public func loadDayEndDate() -> Date? {
+        guard let data = store.data(forKey: CodableSettingsStore.dayEndKey) else { return nil }
+        return try? decoder.decode(Date.self, from: data)
+    }
+
+    public func saveDayEndDate(_ date: Date?) {
+        guard let date else {
+            store.set(nil, forKey: CodableSettingsStore.dayEndKey)
+            return
+        }
+        guard let data = try? encoder.encode(date) else { return }
+        store.set(data, forKey: CodableSettingsStore.dayEndKey)
     }
 }

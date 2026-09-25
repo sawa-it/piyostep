@@ -1,5 +1,18 @@
 import Foundation
 
+/// いつ何が解放されたか。「おわり」の画面で、その日に手に入ったものを見せるのに使う。
+public struct UnlockRecord: Hashable, Codable, Sendable, Identifiable {
+    public let itemID: String
+    public let unlockedAt: Date
+
+    public var id: String { itemID }
+
+    public init(itemID: String, unlockedAt: Date) {
+        self.itemID = itemID
+        self.unlockedAt = unlockedAt
+    }
+}
+
 /// 学習履歴の保存先。アプリでは SwiftData 実装を、テストではインメモリ実装を使う。
 public protocol LearningHistoryStoring: AnyObject {
     func append(attempt: AttemptRecord)
@@ -16,6 +29,8 @@ public protocol LearningHistoryStoring: AnyObject {
 
     func unlockedItemIDs() -> Set<String>
     func markUnlocked(itemIDs: Set<String>, at date: Date)
+    /// 解放の記録（最初から使えるものは含まない）。
+    func unlockRecords() -> [UnlockRecord]
 }
 
 extension LearningHistoryStoring {
@@ -31,6 +46,7 @@ public final class InMemoryLearningHistoryStore: LearningHistoryStoring {
     private var mealRecords: [MealSessionRecord] = []
     private var snapshots: [Skill: MasterySnapshot] = [:]
     private var unlocked: Set<String>
+    private var unlockHistory: [UnlockRecord] = []
 
     public init(unlocked: Set<String> = UnlockCatalog.initiallyUnlockedIDs) {
         self.unlocked = unlocked
@@ -79,6 +95,13 @@ public final class InMemoryLearningHistoryStore: LearningHistoryStoring {
     }
 
     public func markUnlocked(itemIDs: Set<String>, at date: Date) {
+        for id in itemIDs.subtracting(unlocked).sorted() {
+            unlockHistory.append(UnlockRecord(itemID: id, unlockedAt: date))
+        }
         unlocked.formUnion(itemIDs)
+    }
+
+    public func unlockRecords() -> [UnlockRecord] {
+        unlockHistory
     }
 }

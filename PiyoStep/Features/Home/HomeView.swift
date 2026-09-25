@@ -9,15 +9,17 @@ struct SessionRequest: Identifiable {
     let questions: [Question]
 }
 
-/// 全画面で出すもの（学習・ごはんタイマー）。
+/// 全画面で出すもの（学習・ごはんタイマー・きょうは おしまい）。
 enum FullScreenRoute: Identifiable {
     case session(SessionRequest)
     case meal
+    case dayEnd
 
     var id: String {
         switch self {
         case .session(let request): return "session-\(request.id)"
         case .meal: return "meal"
+        case .dayEnd: return "dayEnd"
         }
     }
 }
@@ -45,7 +47,6 @@ struct HomeView: View {
 
     @State private var fullScreenRoute: FullScreenRoute?
     @State private var sheetRoute: SheetRoute?
-    @State private var unlockQueue: [UnlockableItem] = []
     /// 広告を閉じたら保護者画面を開く、という待ち状態
     @State private var opensParentAreaAfterAd = false
 
@@ -65,14 +66,6 @@ struct HomeView: View {
                     .padding(CGFloat(layout.spacing))
                     .piyoContentWidth(layout)
             }
-
-            if let item = unlockQueue.first {
-                Color.black.opacity(0.35).ignoresSafeArea()
-                UnlockBanner(item: item) {
-                    unlockQueue.removeFirst()
-                    environment.haptics.tap()
-                }
-            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.home)
@@ -91,11 +84,7 @@ struct HomeView: View {
         }
         .onAppear {
             environment.refreshProgress()
-            showNextUnlockIfNeeded()
             greet()
-        }
-        .onChange(of: environment.pendingUnlocks.count) { _, _ in
-            showNextUnlockIfNeeded()
         }
         .onChange(of: environment.isShowingParentAd) { _, isShowing in
             guard !isShowing, opensParentAreaAfterAd else { return }
@@ -113,6 +102,8 @@ struct HomeView: View {
             SessionView(request: request)
         case .meal:
             MealRaceContainerView()
+        case .dayEnd:
+            DayEndView()
         }
     }
 
@@ -314,29 +305,61 @@ struct HomeView: View {
     }
 
     private var bottomButtons: some View {
-        HStack(spacing: CGFloat(layout.sized(16))) {
-            IconTitleButton(
-                systemImage: "fork.knife",
-                title: "ごはんタイマー",
-                color: PiyoTheme.success,
-                minHeight: CGFloat(layout.sized(116))
-            ) {
-                environment.haptics.tap()
-                fullScreenRoute = .meal
-            }
-            .accessibilityIdentifier(A11yID.homeMealTimer)
+        VStack(spacing: CGFloat(layout.sized(16))) {
+            HStack(spacing: CGFloat(layout.sized(16))) {
+                IconTitleButton(
+                    systemImage: "fork.knife",
+                    title: "ごはんタイマー",
+                    color: PiyoTheme.success,
+                    minHeight: CGFloat(layout.sized(116))
+                ) {
+                    environment.haptics.tap()
+                    fullScreenRoute = .meal
+                }
+                .accessibilityIdentifier(A11yID.homeMealTimer)
 
-            IconTitleButton(
-                systemImage: "books.vertical.fill",
-                title: "ずかん",
-                color: PiyoTheme.calm,
-                minHeight: CGFloat(layout.sized(116))
-            ) {
-                environment.haptics.tap()
-                sheetRoute = .collection
+                IconTitleButton(
+                    systemImage: "books.vertical.fill",
+                    title: "ずかん",
+                    color: PiyoTheme.calm,
+                    minHeight: CGFloat(layout.sized(116))
+                ) {
+                    environment.haptics.tap()
+                    sheetRoute = .collection
+                }
+                .accessibilityIdentifier(A11yID.homeCollection)
             }
-            .accessibilityIdentifier(A11yID.homeCollection)
+
+            dayEndButton
         }
+    }
+
+    /// その日の遊び終わり。★と新しく手に入ったものを、ここでまとめて受け取る。
+    /// 問題を解き終えるたびに受け取り画面を挟まないぶん、ここは目立たせる。
+    private var dayEndButton: some View {
+        BigButton(color: PiyoTheme.primaryDeep, minHeight: CGFloat(layout.sized(96)), action: openDayEnd) {
+            HStack(spacing: 14) {
+                Image(systemName: "moon.stars.fill")
+                    .font(.system(size: CGFloat(layout.fontSize(30)), weight: .bold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("きょうは おしまい")
+                        .piyoFont(.headline)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                    Text("★と あたらしい ものを うけとる")
+                        .piyoFont(size: 13, weight: .semibold)
+                        .opacity(0.9)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "gift.fill")
+                    .font(.system(size: CGFloat(layout.fontSize(26)), weight: .bold))
+                    .foregroundStyle(PiyoTheme.cheer)
+            }
+            .padding(.vertical, 8)
+        }
+        .accessibilityIdentifier(A11yID.homeDayEnd)
     }
 
     private func icon(for subject: Subject) -> String {
@@ -384,6 +407,11 @@ struct HomeView: View {
         environment.isShowingParentAd = true
     }
 
+    private func openDayEnd() {
+        environment.haptics.tap()
+        fullScreenRoute = .dayEnd
+    }
+
     private func greet() {
         guard let profile = environment.profile else { return }
         environment.speak("\(profile.callName)、こんにちは！ なにで あそぶ？")
@@ -394,10 +422,5 @@ struct HomeView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             action()
         }
-    }
-
-    private func showNextUnlockIfNeeded() {
-        guard !environment.pendingUnlocks.isEmpty else { return }
-        unlockQueue.append(contentsOf: environment.consumePendingUnlocks())
     }
 }

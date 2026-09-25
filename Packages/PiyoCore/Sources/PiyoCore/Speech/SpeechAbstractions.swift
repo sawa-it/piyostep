@@ -55,8 +55,17 @@ public protocol SpeechRecognizing: AnyObject {
 /// 読み上げの抽象。
 public protocol SpeechSynthesizing: AnyObject {
     var isSpeaking: Bool { get }
-    func speak(_ text: String, locale: RecognitionLocale, volume: Double)
+    /// 読み上げる。`completion` は読み終えたときに呼ぶ。
+    /// 途中で `stop()` されたり、別の読み上げに差し替えられたときは呼ばない
+    /// （読み上げの直後にマイクを開く、といった「次の動作」に使うため）。
+    func speak(_ text: String, locale: RecognitionLocale, volume: Double, completion: (() -> Void)?)
     func stop()
+}
+
+extension SpeechSynthesizing {
+    public func speak(_ text: String, locale: RecognitionLocale, volume: Double) {
+        speak(text, locale: locale, volume: volume, completion: nil)
+    }
 }
 
 /// 効果音の抽象。
@@ -141,8 +150,17 @@ public final class MockSpeechSynthesizer: SpeechSynthesizing {
 
     public init() {}
 
-    public func speak(_ text: String, locale: RecognitionLocale, volume: Double) {
+    /// 読み終えたことにするまでの遅れ（秒）。0 ならその場で完了する。
+    public var completionDelay: TimeInterval = 0
+
+    public func speak(_ text: String, locale: RecognitionLocale, volume: Double, completion: (() -> Void)?) {
         spokenTexts.append(text)
+        guard let completion else { return }
+        if completionDelay <= 0 {
+            completion()
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + completionDelay, execute: completion)
+        }
     }
 
     public func stop() {
