@@ -3,6 +3,10 @@ name: CI
 on:
   push:
     branches: ["**"]
+    # 文書だけの変更で UI テストまで回すと、実行中のジョブを打ち切ってしまう。
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
   workflow_dispatch:
 

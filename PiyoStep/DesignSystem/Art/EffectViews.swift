@@ -131,8 +131,20 @@ struct SessionProgressBar: View {
         HStack(spacing: 6) {
             ForEach(0 ..< max(1, total), id: \.self) { index in
                 Capsule()
-                    .fill(index < current ? PiyoTheme.primary : PiyoTheme.outline.opacity(0.6))
-                    .frame(height: 10)
+                    .fill(
+                        index < current
+                            ? AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [PiyoTheme.cheer, PiyoTheme.primary],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            : AnyShapeStyle(PiyoTheme.outline.opacity(0.45))
+                    )
+                    // いま解いている 1 本だけ太くして、どこまで来たかを分かりやすくする。
+                    .frame(height: index == current ? 14 : 10)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: current)
             }
         }
         .frame(maxWidth: .infinity)

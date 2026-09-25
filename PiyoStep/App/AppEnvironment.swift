@@ -38,8 +38,8 @@ final class AppEnvironment {
     var unlockedItemIDs: Set<String> = UnlockCatalog.initiallyUnlockedIDs
     /// 直近に解放されたもの（演出したら空にする）
     var pendingUnlocks: [UnlockableItem] = []
-    /// 起動時広告を表示中か
-    var isShowingLaunchAd = false
+    /// 保護者画面に入るときの広告を表示中か
+    var isShowingParentAd = false
 
     let launchArguments: LaunchArguments
 

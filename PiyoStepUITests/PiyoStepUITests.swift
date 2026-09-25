@@ -33,7 +33,35 @@ final class PiyoStepUITests: XCTestCase {
         app.tappable("\(A11yID.onboardingCharacter)kuma").waitAndTap()
         app.tappable(A11yID.onboardingStart).waitAndTap()
 
+        // マイクの許可はここで聞く。答えようとした瞬間に割り込まないため。
+        app.tappable(A11yID.onboardingMicAllow).waitAndTap()
+
         XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+        XCTAssertTrue(app.element(id: A11yID.homeGreeting).waitUntilExists())
+    }
+
+    func testOnboardingCanSkipTheNameAndGoBack() {
+        let app = UITest.launch(freshInstall: true)
+
+        // キーボードを使わずに進める
+        app.tappable(A11yID.onboardingSkipName).waitAndTap()
+        app.tappable("\(A11yID.onboardingAgeOption)5").waitAndTap()
+
+        // 押し間違えても戻れる
+        app.tappable(A11yID.onboardingBack).waitAndTap()
+        XCTAssertTrue(
+            app.textFields[A11yID.onboardingNameField].waitUntilExists(),
+            "名前のステップに戻れない / \(app.screenSummary(prefix: "onboarding."))"
+        )
+
+        app.tappable(A11yID.onboardingSkipName).waitAndTap()
+        app.tappable("\(A11yID.onboardingAgeOption)4").waitAndTap()
+        app.tappable(A11yID.onboardingNext).waitAndTap()
+        app.tappable(A11yID.onboardingStart).waitAndTap()
+        app.tappable(A11yID.onboardingMicLater).waitAndTap()
+
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+        // 名前を入れなくても呼びかけてもらえる
         XCTAssertTrue(app.element(id: A11yID.homeGreeting).waitUntilExists())
     }
 
@@ -360,6 +388,6 @@ final class PiyoStepUITests: XCTestCase {
         let app = UITest.launch()
         app.tappable(A11yID.homeDailyChallenge).waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
-        XCTAssertFalse(app.element(id: A11yID.launchAd).exists)
+        XCTAssertFalse(app.element(id: A11yID.parentAd).exists)
     }
 }

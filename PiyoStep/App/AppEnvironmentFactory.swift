@@ -78,7 +78,7 @@ enum AppEnvironmentFactory {
             soundPlayer: launchArguments.isUITest ? MockSoundPlayer() : SystemSoundPlayer(),
             haptics: launchArguments.isUITest ? NoopHapticsService() : SystemHapticsService(),
             purchaseService: launchArguments.isUITest ? MockPurchaseService() : StoreKitPurchaseService(),
-            adPresenter: LaunchAdPresenter(isDisabled: launchArguments.disableAds),
+            adPresenter: ParentAreaAdPresenter(isDisabled: launchArguments.disableAds),
             // UI テストでは端末にファイルを残さない。
             profileImageStore: launchArguments.isUITest
                 ? InMemoryProfileImageStore()

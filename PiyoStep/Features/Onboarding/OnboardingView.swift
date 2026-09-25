@@ -1,16 +1,25 @@
 import SwiftUI
 import PiyoCore
 
-/// はじめての起動。子ども本人でも進められるよう、3 ステップだけにする。
+/// はじめての起動。子ども本人でも進められるよう、短く・戻れるようにする。
 struct OnboardingView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.piyoLayout) private var layout
     @FocusState private var isNameFocused: Bool
 
-    @State private var step = 0
+    /// 進む順番。名前は飛ばせる。
+    enum Step: Int, CaseIterable {
+        case name
+        case age
+        case character
+        case microphone
+    }
+
+    @State private var step: Step = .name
     @State private var nickname = ""
     @State private var age = 4
     @State private var characterID = CharacterCatalog.defaultCharacterID
+    @State private var isAskingMicrophone = false
 
     private let ageOptions = [3, 4, 5, 6]
 
@@ -25,13 +34,53 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             PiyoBackground(tint: PiyoTheme.primary)
-            stepLayout
-                .padding(CGFloat(layout.sized(20)))
-                .piyoContentWidth(layout)
+
+            VStack(spacing: 0) {
+                progressHeader
+                stepLayout
+                    .padding(CGFloat(layout.sized(20)))
+                    .piyoContentWidth(layout)
+            }
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: step)
         .onAppear {
             environment.speak("なまえを おしえてね")
         }
+    }
+
+    /// いま何番目か、そして戻れることを見せる。
+    /// 押し間違えても直せると分かっているほうが、思い切って押せる。
+    private var progressHeader: some View {
+        HStack(spacing: 12) {
+            if step != .name {
+                Button(action: goBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: CGFloat(layout.fontSize(20)), weight: .bold))
+                        .foregroundStyle(PiyoTheme.textSoft)
+                        .frame(width: 52, height: 52)
+                        .background(Circle().fill(PiyoTheme.surface.opacity(0.9)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("もどる")
+                .accessibilityIdentifier(A11yID.onboardingBack)
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                ForEach(Step.allCases, id: \.rawValue) { item in
+                    Capsule()
+                        .fill(item == step ? PiyoTheme.primary : PiyoTheme.outline.opacity(0.6))
+                        .frame(width: item == step ? 26 : 10, height: 10)
+                }
+            }
+
+            Spacer()
+
+            Color.clear.frame(width: 52, height: 52)
+        }
+        .padding(.horizontal, CGFloat(layout.sized(20)))
+        .padding(.top, 12)
     }
 
     /// 横向きは、キャラクターを左に置いて縦を空ける。
@@ -63,9 +112,10 @@ struct OnboardingView: View {
     @ViewBuilder
     private var stepContent: some View {
         switch step {
-        case 0: nameStep
-        case 1: ageStep
-        default: characterStep
+        case .name: nameStep
+        case .age: ageStep
+        case .character: characterStep
+        case .microphone: microphoneStep
         }
     }
 
@@ -96,9 +146,66 @@ struct OnboardingView: View {
             }
             .accessibilityIdentifier(A11yID.onboardingNext)
 
-            Text("あとから かえられます")
+            // 3〜6歳にキーボードは扱えない。飛ばせることを画面に出しておく。
+            Button(action: skipName) {
+                Text("なまえは あとで")
+                    .piyoFont(.body)
+                    .foregroundStyle(PiyoTheme.primaryDeep)
+                    .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(56)))
+                    .background(Capsule().fill(PiyoTheme.primary.opacity(0.14)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(A11yID.onboardingSkipName)
+
+            Text("おうちのかたが あとから かえられます")
                 .piyoFont(.caption)
                 .foregroundStyle(PiyoTheme.textSoft)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    /// マイクの許可をここで取る。
+    ///
+    /// 答えようとした瞬間に許可ダイアログが割り込むと、子どもはもう話し始めていて
+    /// 流れが切れてしまう。先に取っておき、断られてもタップで遊べる。
+    private var microphoneStep: some View {
+        VStack(spacing: CGFloat(layout.sized(18))) {
+            Text("こえで こたえてみる？")
+                .piyoFont(.title)
+                .foregroundStyle(PiyoTheme.text)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.6)
+
+            Image(systemName: "mic.fill")
+                .font(.system(size: CGFloat(layout.artSized(56)), weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: CGFloat(layout.artSized(110)), height: CGFloat(layout.artSized(110)))
+                .background(Circle().fill(PiyoTheme.primary))
+                .shadow(color: PiyoTheme.primary.opacity(0.4), radius: 14, y: 6)
+
+            Text("マイクを つかうと、こえで こたえられます。\nきいた ことばは この なかだけで つかいます。")
+                .piyoFont(.caption)
+                .foregroundStyle(PiyoTheme.textSoft)
+                .multilineTextAlignment(.center)
+
+            BigButton(color: PiyoTheme.success, isEnabled: !isAskingMicrophone, action: allowMicrophone) {
+                HStack(spacing: 10) {
+                    Image(systemName: "play.fill")
+                    Text("はじめる！")
+                        .piyoFont(.headline)
+                }
+            }
+            .accessibilityIdentifier(A11yID.onboardingMicAllow)
+
+            Button(action: finish) {
+                Text("こえは つかわない")
+                    .piyoFont(.body)
+                    .foregroundStyle(PiyoTheme.textSoft)
+                    .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(56)))
+            }
+            .buttonStyle(.plain)
+            .disabled(isAskingMicrophone)
+            .accessibilityIdentifier(A11yID.onboardingMicLater)
         }
     }
 
@@ -179,12 +286,9 @@ struct OnboardingView: View {
                 .padding(.horizontal, 4)
             }
 
-            BigButton(color: PiyoTheme.success, action: finish) {
-                HStack(spacing: 10) {
-                    Image(systemName: "play.fill")
-                    Text("はじめる！")
-                        .piyoFont(.headline)
-                }
+            BigButton(color: PiyoTheme.primary, action: goToMicrophoneStep) {
+                Text("つぎへ")
+                    .piyoFont(.headline)
             }
             .accessibilityIdentifier(A11yID.onboardingStart)
         }
@@ -193,15 +297,51 @@ struct OnboardingView: View {
     // MARK: - 操作
 
     private func goToAgeStep() {
+        isNameFocused = false
         environment.haptics.tap()
-        step = 1
+        step = .age
         environment.speak("なんさい？")
+    }
+
+    private func skipName() {
+        nickname = ""
+        goToAgeStep()
     }
 
     private func goToCharacterStep() {
         environment.haptics.tap()
-        step = 2
+        step = .character
         environment.speak("あいぼうを えらぼう")
+    }
+
+    private func goToMicrophoneStep() {
+        environment.haptics.tap()
+        step = .microphone
+        environment.speak("こえで こたえてみる？")
+    }
+
+    private func goBack() {
+        isNameFocused = false
+        environment.haptics.tap()
+        guard let previous = Step(rawValue: step.rawValue - 1) else { return }
+        step = previous
+    }
+
+    /// マイクを許可してから始める。断られても、そのまま始める。
+    private func allowMicrophone() {
+        environment.haptics.tap()
+        let recognizer = environment.speechRecognizer
+        guard recognizer.authorizationStatus == .notDetermined else {
+            finish()
+            return
+        }
+        isAskingMicrophone = true
+        recognizer.requestAuthorization { _ in
+            Task { @MainActor in
+                isAskingMicrophone = false
+                finish()
+            }
+        }
     }
 
     private func finish() {

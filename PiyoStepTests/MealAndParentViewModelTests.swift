@@ -85,7 +85,7 @@ final class MealRaceViewModelTests: XCTestCase {
 
         model.begin()
         XCTAssertTrue(adPresenter.isLearningSessionActive)
-        XCTAssertFalse(adPresenter.shouldPresentLaunchAd(adsRemoved: false))
+        XCTAssertFalse(adPresenter.shouldPresentParentAd(adsRemoved: false))
 
         TestEnvironment.wait(timeout: 3.0, until: { model.stage == .racing })
         model.finish()

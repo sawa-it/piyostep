@@ -46,6 +46,8 @@ struct HomeView: View {
     @State private var fullScreenRoute: FullScreenRoute?
     @State private var sheetRoute: SheetRoute?
     @State private var unlockQueue: [UnlockableItem] = []
+    /// 広告を閉じたら保護者画面を開く、という待ち状態
+    @State private var opensParentAreaAfterAd = false
 
     private var columns: [GridItem] {
         Array(
@@ -95,6 +97,11 @@ struct HomeView: View {
         .onChange(of: environment.pendingUnlocks.count) { _, _ in
             showNextUnlockIfNeeded()
         }
+        .onChange(of: environment.isShowingParentAd) { _, isShowing in
+            guard !isShowing, opensParentAreaAfterAd else { return }
+            opensParentAreaAfterAd = false
+            presentAfterDismiss { sheetRoute = .parentArea }
+        }
     }
 
     // MARK: - 遷移先
@@ -125,7 +132,7 @@ struct HomeView: View {
             ParentGateView(
                 onPass: {
                     sheetRoute = nil
-                    presentAfterDismiss { sheetRoute = .parentArea }
+                    presentAfterDismiss { openParentArea() }
                 },
                 onCancel: { sheetRoute = nil }
             )
@@ -165,7 +172,20 @@ struct HomeView: View {
     // MARK: - パーツ
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
+        headerContent
+            .padding(CGFloat(layout.sized(16)))
+            .background(
+                RoundedRectangle(cornerRadius: PiyoTheme.cornerRadius, style: .continuous)
+                    .fill(PiyoTheme.surface.opacity(0.75))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: PiyoTheme.cornerRadius, style: .continuous)
+                    .stroke(PiyoTheme.outline.opacity(0.35), lineWidth: 1)
+            )
+    }
+
+    private var headerContent: some View {
+        HStack(alignment: .center, spacing: 12) {
             // 写真を選んでいればその写真、そうでなければ相棒キャラの絵。
             if environment.avatar.photoFileName != nil {
                 AvatarView(
@@ -184,10 +204,13 @@ struct HomeView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(environment.appDisplayName)
-                    .piyoFont(.caption)
-                    .foregroundStyle(PiyoTheme.textSoft)
+                    .piyoFont(size: 13, weight: .semibold)
+                    .foregroundStyle(PiyoTheme.primaryDeep)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(PiyoTheme.primary.opacity(0.14)))
                     .accessibilityIdentifier(A11yID.homeAppName)
 
                 Text("\(environment.profile?.callName ?? "きみ")、こんにちは！")
@@ -197,15 +220,22 @@ struct HomeView: View {
                     .lineLimit(2)
                     .accessibilityIdentifier(A11yID.homeGreeting)
 
-                HStack(spacing: 6) {
-                    Image(systemName: "star.fill")
-                        .foregroundStyle(PiyoTheme.cheer)
-                    Text("\(environment.progress.totalStars)")
-                        .piyoFont(.body)
-                        .foregroundStyle(PiyoTheme.text)
-                        .accessibilityIdentifier(A11yID.homeStarCount)
+                HStack(spacing: 8) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: CGFloat(layout.fontSize(15)), weight: .bold))
+                            .foregroundStyle(PiyoTheme.cheer)
+                        Text("\(environment.progress.totalStars)")
+                            .piyoFont(size: 17, weight: .heavy)
+                            .foregroundStyle(PiyoTheme.text)
+                            .accessibilityIdentifier(A11yID.homeStarCount)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(PiyoTheme.cheer.opacity(0.18)))
+
                     if let goal = environment.nextUnlockGoal {
-                        Text("・つぎは \(goal.name)")
+                        Text("つぎは \(goal.name)")
                             .piyoFont(.caption)
                             .foregroundStyle(PiyoTheme.textSoft)
                             .lineLimit(1)
@@ -220,16 +250,19 @@ struct HomeView: View {
                 environment.haptics.tap()
                 sheetRoute = .parentGate
             } label: {
-                VStack(spacing: 2) {
+                VStack(spacing: 3) {
                     Image(systemName: "person.2.fill")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: CGFloat(layout.fontSize(19)), weight: .bold))
                     Text("おうちのひと")
                         .piyoFont(size: 11, weight: .semibold)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
                 .foregroundStyle(PiyoTheme.textSoft)
-                .frame(width: 84, height: 60)
+                .frame(width: CGFloat(layout.sized(82)), height: CGFloat(layout.sized(60)))
                 .background(
-                    RoundedRectangle(cornerRadius: 16).fill(PiyoTheme.surface.opacity(0.9))
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(PiyoTheme.surfaceSunken)
                 )
             }
             .buttonStyle(.plain)
@@ -334,6 +367,21 @@ struct HomeView: View {
         fullScreenRoute = .session(
             SessionRequest(kind: .freePlay, subject: skill.subject, questions: questions)
         )
+    }
+
+    /// ゲートを通ったあとで保護者画面を開く。
+    /// 広告はここでだけ出す。ゲートの向こう側なので、見るのは必ず大人になる。
+    ///
+    /// 広告はルートに重ねて出すので、シートを先に開くとその下に隠れてしまう。
+    /// 「ゲート → 広告 → 保護者画面」の順に、ひとつずつ出す。
+    private func openParentArea() {
+        guard environment.adPresenter.shouldPresentParentAd(adsRemoved: environment.settings.adsRemoved) else {
+            sheetRoute = .parentArea
+            return
+        }
+        environment.adPresenter.markParentAdPresented()
+        opensParentAreaAfterAd = true
+        environment.isShowingParentAd = true
     }
 
     private func greet() {

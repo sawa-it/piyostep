@@ -3,7 +3,6 @@ import PiyoCore
 
 struct RootView: View {
     @Environment(AppEnvironment.self) private var environment
-    @State private var hasCheckedLaunchAd = false
 
     var body: some View {
         // 画面の実寸から寸法を決めて下へ配る。回転・分割表示にそのまま追従する。
@@ -22,31 +21,23 @@ struct RootView: View {
                     .transition(.opacity)
             }
 
-            if environment.isShowingLaunchAd {
-                LaunchAdView {
-                    environment.isShowingLaunchAd = false
+            if environment.isShowingParentAd {
+                ParentAreaAdView {
+                    environment.isShowingParentAd = false
                 }
                 .transition(.opacity)
                 .zIndex(10)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: environment.profile?.id)
-        .animation(.easeInOut(duration: 0.25), value: environment.isShowingLaunchAd)
-        .onAppear {
-            guard !hasCheckedLaunchAd else { return }
-            hasCheckedLaunchAd = true
-            // 広告は起動時のみ。学習中・ご飯タイマー中は表示しない。
-            if environment.adPresenter.shouldPresentLaunchAd(adsRemoved: environment.settings.adsRemoved) {
-                environment.adPresenter.markLaunchAdPresented()
-                environment.isShowingLaunchAd = true
-            }
-        }
+        .animation(.easeInOut(duration: 0.25), value: environment.isShowingParentAd)
     }
 }
 
-/// 起動時にだけ出す広告枠。
+/// 保護者画面に入るときだけ出す広告枠。
+/// 子どもの画面には一切出さない（ペアレンタルゲートの向こう側でしか表示されない）。
 /// 実際の広告 SDK を入れるときは、この View の中身だけを差し替えればよい。
-struct LaunchAdView: View {
+struct ParentAreaAdView: View {
     var onClose: () -> Void
 
     /// 子どもの誤タップを防ぐため、閉じるボタンは少し待ってから有効にする。
@@ -72,7 +63,7 @@ struct LaunchAdView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(remainingSeconds > 0)
-                    .accessibilityIdentifier(A11yID.launchAdClose)
+                    .accessibilityIdentifier(A11yID.parentAdClose)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
@@ -83,10 +74,10 @@ struct LaunchAdView: View {
                     Image(systemName: "megaphone.fill")
                         .font(.system(size: 60))
                         .foregroundStyle(.white.opacity(0.9))
-                    Text("ひろこく")
+                    Text("広告")
                         .piyoFont(.headline)
                         .foregroundStyle(.white)
-                    Text("この枠に広告が表示されます。\n学習中とごはんタイマー中には表示されません。")
+                    Text("この枠に広告が表示されます。\nお子さまの画面には表示されません。")
                         .piyoFont(.caption)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.white.opacity(0.75))
@@ -102,7 +93,7 @@ struct LaunchAdView: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(A11yID.launchAd)
+        .accessibilityIdentifier(A11yID.parentAd)
         .onAppear(perform: startCountdown)
     }
 

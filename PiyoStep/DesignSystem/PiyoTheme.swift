@@ -17,6 +17,8 @@ enum PiyoTheme {
     static let cheer = Color(red: 0.99, green: 0.78, blue: 0.24)
     static let calm = Color(red: 0.42, green: 0.69, blue: 0.93)
     static let outline = Color(red: 0.86, green: 0.82, blue: 0.75)
+    /// 影の色。黒をそのまま使うと濁るので、少し暖色に寄せる。
+    static let shadow = Color(red: 0.36, green: 0.26, blue: 0.16)
 
     /// 教科ごとの色。
     static func color(for subject: Subject) -> Color {
@@ -73,24 +75,38 @@ enum PiyoTheme {
 }
 
 /// 画面全体の背景。
+///
+/// 上をわずかに明るく、下を教科の色に寄せる。べた塗りだと平坦に見え、
+/// 逆に模様を増やすと、幼児には「押せるもの」との区別がつかなくなる。
 struct PiyoBackground: View {
     var tint: Color = PiyoTheme.primary
 
     var body: some View {
         ZStack {
-            PiyoTheme.background
+            LinearGradient(
+                colors: [
+                    PiyoTheme.background,
+                    PiyoTheme.background,
+                    tint.opacity(0.14)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
             // やわらかい丸を散らして、余白が寂しくならないようにする。
             GeometryReader { proxy in
                 let width = proxy.size.width
                 let height = proxy.size.height
                 Circle()
                     .fill(tint.opacity(0.10))
-                    .frame(width: width * 0.9)
-                    .position(x: width * 0.12, y: height * 0.08)
+                    .frame(width: width * 0.62)
+                    .blur(radius: 18)
+                    .position(x: width * 0.10, y: height * 0.06)
                 Circle()
-                    .fill(tint.opacity(0.07))
-                    .frame(width: width * 0.7)
-                    .position(x: width * 0.95, y: height * 0.85)
+                    .fill(PiyoTheme.cheer.opacity(0.10))
+                    .frame(width: width * 0.40)
+                    .blur(radius: 22)
+                    .position(x: width * 0.92, y: height * 0.90)
             }
         }
         .ignoresSafeArea()
@@ -109,7 +125,12 @@ struct PiyoCard<Content: View>: View {
             .background(
                 RoundedRectangle(cornerRadius: PiyoTheme.cornerRadius, style: .continuous)
                     .fill(PiyoTheme.surface)
-                    .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 6)
+                    .shadow(color: PiyoTheme.shadow.opacity(0.10), radius: 18, x: 0, y: 8)
+            )
+            .overlay(
+                // 白い背景に白いカードが重なるので、ごく薄い縁で境目を出す。
+                RoundedRectangle(cornerRadius: PiyoTheme.cornerRadius, style: .continuous)
+                    .stroke(PiyoTheme.outline.opacity(0.45), lineWidth: 1)
             )
     }
 }

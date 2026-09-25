@@ -9,6 +9,10 @@ public enum A11yID {
     public static let onboardingAgeOption = "onboarding.age"        // + "\(age)"
     public static let onboardingCharacter = "onboarding.character"  // + characterID
     public static let onboardingStart = "onboarding.start"
+    public static let onboardingBack = "onboarding.back"
+    public static let onboardingSkipName = "onboarding.skipName"
+    public static let onboardingMicAllow = "onboarding.mic.allow"
+    public static let onboardingMicLater = "onboarding.mic.later"
 
     // ホーム
     public static let home = "home.root"
@@ -104,7 +108,7 @@ public enum A11yID {
     /// 横向きではキーボードが画面の大半を覆うので、閉じる手段が要る。
     public static let keyboardDone = "keyboard.done"
 
-    // 広告
-    public static let launchAd = "ad.launch"
-    public static let launchAdClose = "ad.launch.close"
+    // 広告（保護者画面に入るときだけ出す）
+    public static let parentAd = "ad.parent"
+    public static let parentAdClose = "ad.parent.close"
 }
