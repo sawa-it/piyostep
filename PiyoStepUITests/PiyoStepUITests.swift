@@ -280,7 +280,7 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
     }
 
-    // MARK: - ずかん
+    // MARK: - バッジ
 
     func testCollectionShowsLockedAndUnlockedItems() {
         let app = UITest.launch()

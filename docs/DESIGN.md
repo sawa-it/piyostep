@@ -42,7 +42,7 @@
           ├─ すうじ               → SubjectMenuView(number) → CountGameView / PlaceValueView / NumberReadView
           ├─ えいご               → SubjectMenuView(english) → AlphabetView / EnglishWordView
           ├─ ごはんタイマー       → MealSetupView → MealRaceView → MealResultView
-          ├─ ずかん（コレクション）→ CollectionView（キャラ・衣装・食器・背景・スタンプ）
+          ├─ バッジ → BadgeCollectionView（なかま・きせかえ・おさら・はいけい・いきものバッジ）
           └─ おうちのひと（右上・小さめ）→ ParentGateView → ParentTabView
                                             ├─ ProgressDashboardView（習熟度）
                                             ├─ SettingsView（設定）
@@ -72,7 +72,7 @@ HomeView
        ├ 回答（選択 / 数字入力 / ドラッグ / なぞり / 音声）
        ├ 正解 → ✨演出 + 「せいかい！」+ ★獲得
        └ 不正解 → キャラが「おしい！もういっかい！」→ 再挑戦（2回目でヒント）
-  → ResultView（獲得スタンプ・★、アンロック演出）
+  → ResultView（獲得★、アンロック演出）
   → HomeView
 ```
 
@@ -106,7 +106,7 @@ HomeView → [ごはんタイマー]
   → MealResultView
        ├ 子どもが先  → 「やったー！くまくんより はやかったね！」＋一緒に喜ぶ
        └ キャラが先  → 「くまくんは たべおわったよ！あとちょっと！」＋応援（否定語なし）
-  → ★とスタンプ付与 → HomeView
+  → ★付与 → HomeView
 ```
 
 ### 3.4 保護者フロー
@@ -191,7 +191,7 @@ HomeView 右上の小さな「おうちのひと」
 │   ├── Services/                        Speech / AVFoundation / StoreKit / 広告 / SwiftData 実装
 │   ├── ViewModels/                      画面ごとの ViewModel（@MainActor / Observable）
 │   ├── Features/                        画面（Home, Challenge, Clock, Kana, Number, English, Meal, Parent）
-│   └── Resources/                       Assets.xcassets（色のみ。イラストはコード描画）
+│   └── Resources/                       Assets.xcassets（Fluent Emoji から描き出したイラスト・アイコン・色）
 │                                        ※ Info.plist は GENERATE_INFOPLIST_FILE で生成し、
 │                                          マイク／音声認識の説明文はビルド設定で指定
 ├── PiyoStepTests/                       アプリ層の Unit Test（ViewModel・モック注入）
@@ -199,9 +199,20 @@ HomeView 右上の小さな「おうちのひと」
 └── docs/DESIGN.md                       本書
 ```
 
-**イラストについて**: 画像アセットを一切持たず、キャラクター・動物・食べ物・お皿はすべて
-SwiftUI の `Shape` / `Path` による**コード描画**（`DesignSystem/Art/`）。
-これによりリポジトリがテキストのみで完結し、差分レビューも容易。
+**イラストについて**: キャラクター・ことばの絵・食べもの・バッジは、フリー素材の
+**Fluent Emoji**（Microsoft, MIT License）を `Tools/fetch_art_assets.py` で PNG に描き出して使う。
+どの絵をどこで使うかは `DesignSystem/Art/ArtAsset.swift` の対応表に集める。
+キャラクターは静止画 1 枚だが、`CharacterArtView` が時刻から「はずむ・ちぢむ・かたむく」を
+計算し、気持ちに合わせた小物（きらきら・zzz・ふきだし・好物）を添えて動かす。
+お皿・時計・バッジのふち・紙吹雪・光の帯など、素材で表せないものはコード描画のまま。
+動きは「視差効果を減らす」と UI テスト（`-uiTestMode 1`）で止まる（`PiyoMotion`）。
+
+**バッジについて**: 集めたものは「ずかん」ではなく **バッジ** として見せる。
+なかま・きせかえ・おさら・はいけいに加えて、チューリップ・バッタ・てんとうむし などの
+いきものバッジがあり、どれも缶バッジの形（金のふち＋リボン）で並ぶ。
+
+**なぞり書きについて**: 幼児は小さくは書けないので、なぞり書き・自由書きのときは
+出題を脇に寄せ、残りの高さをすべてキャンバスに渡す（横に余裕があればボタンは右に立てる）。
 
 ---
 
@@ -368,7 +379,7 @@ SwiftUI の `Shape` / `Path` による**コード描画**（`DesignSystem/Art/`�
 - ご飯タイマー（キャラクターとの競争）
 - 共通の音声入力 UI（マイクボタン・波形・キャラリアクション・再入力導線）
 - 学習結果の保存（SwiftData）
-- ずかん / アンロック（キャラ・衣装・食器・背景・スタンプ）
+- バッジ / アンロック（なかま・きせかえ・おさら・はいけい・いきものバッジ）
 - ペアレンタルゲート → 保護者画面（習熟度グラフ・設定・広告解除）
 - 保護者画面に入るときの広告スロット（子どもの画面には出さない）+ StoreKit による広告解除
 - Unit Test / UI Test

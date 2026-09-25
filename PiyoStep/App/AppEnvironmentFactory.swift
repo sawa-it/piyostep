@@ -61,6 +61,9 @@ enum AppEnvironmentFactory {
             historyStore = InMemoryLearningHistoryStore()
         }
 
+        // UI テストでは、はずむ・回るといった動きを止めて画面を安定させる。
+        PiyoMotion.isReducedByLaunchArguments = launchArguments.reduceAnimations
+
         let recognizer: SpeechRecognizing
         if !launchArguments.voiceScript.isEmpty {
             recognizer = ScriptedSpeechRecognizer(transcripts: launchArguments.voiceScript)

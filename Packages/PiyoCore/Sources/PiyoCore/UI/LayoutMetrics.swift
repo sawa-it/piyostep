@@ -36,7 +36,7 @@ public struct LayoutMetrics: Equatable, Sendable {
     public let contentMaxWidth: Double
     /// ホームの教科グリッドの列数。
     public let subjectColumns: Int
-    /// ずかんの列数。
+    /// バッジ画面の列数。
     public let collectionColumns: Int
     /// 出題と回答を左右に並べるか。
     public let usesSideBySideAnswer: Bool

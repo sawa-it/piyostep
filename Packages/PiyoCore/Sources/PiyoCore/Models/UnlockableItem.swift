@@ -6,7 +6,7 @@ public enum UnlockCategory: String, CaseIterable, Codable, Sendable, Identifiabl
     case costume
     case tableware
     case background
-    case stamp
+    case badge
 
     public var id: String { rawValue }
 
@@ -16,7 +16,7 @@ public enum UnlockCategory: String, CaseIterable, Codable, Sendable, Identifiabl
         case .costume: return "きせかえ"
         case .tableware: return "おさら"
         case .background: return "はいけい"
-        case .stamp: return "スタンプ"
+        case .badge: return "バッジ"
         }
     }
 }
@@ -126,12 +126,17 @@ public enum UnlockCatalog {
         UnlockableItem(id: "bg.space", category: .background, name: "うちゅう", condition: .subjectMastery(.clock, 0.7), artKey: "space"),
         UnlockableItem(id: "bg.night", category: .background, name: "よぞら", condition: .learningDays(10), artKey: "night"),
 
-        // スタンプ
-        UnlockableItem(id: "stamp.star", category: .stamp, name: "ほしスタンプ", condition: .always, artKey: "star"),
-        UnlockableItem(id: "stamp.heart", category: .stamp, name: "ハートスタンプ", condition: .challengesCompleted(3), artKey: "heart"),
-        UnlockableItem(id: "stamp.medal", category: .stamp, name: "メダル", condition: .challengesCompleted(7), artKey: "medal"),
-        UnlockableItem(id: "stamp.trophy", category: .stamp, name: "トロフィー", condition: .challengesCompleted(20), artKey: "trophy"),
-        UnlockableItem(id: "stamp.rainbow", category: .stamp, name: "にじスタンプ", condition: .subjectMastery(.englishWord, 0.5), artKey: "rainbow")
+        // バッジ
+        UnlockableItem(id: "badge.tulip", category: .badge, name: "チューリップバッジ", condition: .always, artKey: "tulip"),
+        UnlockableItem(id: "badge.grasshopper", category: .badge, name: "バッタバッジ", condition: .totalStars(5), artKey: "grasshopper"),
+        UnlockableItem(id: "badge.butterfly", category: .badge, name: "ちょうちょバッジ", condition: .learningDays(2), artKey: "butterfly"),
+        UnlockableItem(id: "badge.ladybug", category: .badge, name: "てんとうむしバッジ", condition: .challengesCompleted(3), artKey: "ladybug"),
+        UnlockableItem(id: "badge.snail", category: .badge, name: "かたつむりバッジ", condition: .mealsCompleted(3), artKey: "snail"),
+        UnlockableItem(id: "badge.sunflower", category: .badge, name: "ひまわりバッジ", condition: .challengesCompleted(7), artKey: "sunflower"),
+        UnlockableItem(id: "badge.bee", category: .badge, name: "みつばちバッジ", condition: .subjectMastery(.hiragana, 0.5), artKey: "bee"),
+        UnlockableItem(id: "badge.frog", category: .badge, name: "かえるバッジ", condition: .subjectMastery(.number, 0.5), artKey: "frog"),
+        UnlockableItem(id: "badge.rainbow", category: .badge, name: "にじバッジ", condition: .subjectMastery(.englishWord, 0.5), artKey: "rainbow"),
+        UnlockableItem(id: "badge.trophy", category: .badge, name: "トロフィーバッジ", condition: .challengesCompleted(20), artKey: "trophy")
     ]
 
     public static func item(id: String) -> UnlockableItem? {

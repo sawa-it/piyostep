@@ -16,6 +16,7 @@ struct ParentSettingsView: View {
                 SoundSettingsSection(model: model)
                 MealSettingsSection(model: model)
                 SubjectSettingsSection(model: model)
+                CreditsSection()
             }
         }
         .onAppear {
@@ -346,5 +347,41 @@ struct PurchaseView: View {
         case .failed(let reason):
             message = "うまくいきませんでした：\(reason)"
         }
+    }
+}
+
+/// つかっている素材のクレジット。ライセンスの条件で、全文を読めるようにしておく。
+private struct CreditsSection: View {
+    @State private var isExpanded = false
+
+    var body: some View {
+        Section {
+            HStack(spacing: 12) {
+                ArtImage(asset: .chick, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("イラスト: Fluent Emoji")
+                        .font(.subheadline)
+                    Text("© Microsoft Corporation（MIT License）")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            DisclosureGroup("ライセンス全文", isExpanded: $isExpanded) {
+                Text(licenseText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        } header: {
+            Text("つかっている素材")
+        }
+    }
+
+    private var licenseText: String {
+        guard let url = Bundle.main.url(forResource: "FluentEmoji-LICENSE", withExtension: "txt"),
+              let text = try? String(contentsOf: url, encoding: .utf8) else {
+            return "MIT License — Copyright (c) Microsoft Corporation."
+        }
+        return text
     }
 }

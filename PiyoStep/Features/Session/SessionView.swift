@@ -57,7 +57,11 @@ struct SessionView: View {
         } else {
             VStack(spacing: 14) {
                 header(model)
-                if layout.usesSideBySideAnswer {
+                if model.answerMode == .trace {
+                    // なぞり書き・自由書きはスクロールさせず、残りの高さを
+                    // ぜんぶキャンバスに渡す。幼児は小さくは書けない。
+                    traceBody(model)
+                } else if layout.usesSideBySideAnswer {
                     // 横向きは出題を左、回答を右に置く。縦に積むと、
                     // 高さ 390pt の iPhone 横持ちで回答ボタンが画面の外に出る。
                     HStack(alignment: .top, spacing: CGFloat(layout.spacing)) {
@@ -95,6 +99,30 @@ struct SessionView: View {
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.stage)
         }
+    }
+
+    /// なぞり書きのときの並べ方。出題は小さく脇に寄せ、書くところを最大にする。
+    private func traceBody(_ model: SessionViewModel) -> some View {
+        GeometryReader { proxy in
+            if layout.usesSideBySideAnswer {
+                HStack(alignment: .top, spacing: CGFloat(layout.spacing)) {
+                    ScrollView { questionArea(model).padding(.vertical, 4) }
+                        .frame(width: proxy.size.width * 0.30)
+                    answerArea(model)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            } else {
+                VStack(spacing: CGFloat(layout.spacing)) {
+                    questionArea(model)
+                        .fixedSize(horizontal: false, vertical: true)
+                    answerArea(model)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        }
+        .padding(.horizontal, CGFloat(layout.spacing))
+        .padding(.bottom, 12)
+        .piyoContentWidth(layout)
     }
 
     // MARK: - ヘッダー
@@ -261,11 +289,17 @@ struct FeedbackPanel: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(spacing: 14) {
-                CharacterArtView(
-                    character: character,
-                    mood: feedback.judgement == .correct ? .happy : .cheering,
-                    size: 80
-                )
+                ZStack {
+                    if feedback.judgement == .correct {
+                        SparkleBurstView(isActive: true, color: PiyoTheme.cheer, size: 130)
+                    }
+                    CharacterArtView(
+                        character: character,
+                        mood: feedback.judgement == .correct ? .happy : .cheering,
+                        size: 80
+                    )
+                }
+                .frame(width: 80, height: 80)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(feedback.message)
                         .piyoFont(.headline)

@@ -64,18 +64,14 @@ struct MealSetupView: View {
             PiyoCard {
                 HStack(spacing: 24) {
                     VStack(spacing: 6) {
-                        Image(systemName: "timer")
-                            .font(.system(size: 28))
-                            .foregroundStyle(PiyoTheme.success)
+                        ArtImage(asset: .timer, size: 44)
                         Text("\(model.targetMinutes)ふん")
                             .piyoFont(.headline)
                             .foregroundStyle(PiyoTheme.text)
                     }
                     Divider().frame(height: 48)
                     VStack(spacing: 6) {
-                        Image(systemName: "fork.knife")
-                            .font(.system(size: 28))
-                            .foregroundStyle(PiyoTheme.success)
+                        ArtImage(asset: ArtCatalog.food(named: model.character.favoriteFood), size: 44)
                         Text(model.character.favoriteFood)
                             .piyoFont(.body)
                             .foregroundStyle(PiyoTheme.text)
@@ -251,8 +247,7 @@ struct MealRaceView: View {
 
     private var messageBubble: some View {
         HStack(spacing: 12) {
-            Image(systemName: "bubble.left.fill")
-                .foregroundStyle(PiyoTheme.cheer)
+            CharacterArtView(character: model.character, mood: .idle, size: 40, isAnimated: false)
             Text(model.characterMessage)
                 .piyoFont(.body)
                 .foregroundStyle(PiyoTheme.text)

@@ -98,6 +98,34 @@ struct IconTitleButton: View {
     }
 }
 
+/// イラストと文字を縦に並べたボタン。ホームの教科やごはんタイマーに使う。
+struct ArtTitleButton: View {
+    @Environment(\.piyoLayout) private var layout
+
+    var asset: ArtAsset
+    var title: String
+    var color: Color = PiyoTheme.primary
+    var minHeight: CGFloat?
+    var action: () -> Void
+
+    var body: some View {
+        BigButton(color: color, minHeight: minHeight ?? CGFloat(layout.sized(116)), action: action) {
+            VStack(spacing: 8) {
+                // 白い丸の上に置くと、色の面の上でも絵がくっきり見える。
+                ArtImage(asset: asset, size: CGFloat(layout.sized(54)))
+                    .padding(CGFloat(layout.sized(7)))
+                    .background(Circle().fill(Color.white.opacity(0.30)))
+                    .shadow(color: PiyoTheme.shadow.opacity(0.22), radius: 5, y: 3)
+                Text(title)
+                    .piyoFont(.headline)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+            }
+            .padding(.vertical, 12)
+        }
+    }
+}
+
 /// 丸い戻るボタン。
 struct BackCircleButton: View {
     var action: () -> Void

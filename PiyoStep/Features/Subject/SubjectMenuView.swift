@@ -24,9 +24,12 @@ struct SubjectMenuView: View {
                 HStack {
                     BackCircleButton { dismiss() }
                     Spacer()
-                    Text(subject.childTitle)
-                        .piyoFont(.title)
-                        .foregroundStyle(PiyoTheme.text)
+                    HStack(spacing: 10) {
+                        ArtImage(asset: ArtCatalog.subject(subject), size: CGFloat(layout.sized(40)))
+                        Text(subject.childTitle)
+                            .piyoFont(.title)
+                            .foregroundStyle(PiyoTheme.text)
+                    }
                     Spacer()
                     Color.clear.frame(width: 64, height: 64)
                 }

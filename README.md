@@ -9,7 +9,7 @@
 - アルファベット・超基本英単語
 - **キャラクターと競争するご飯タイマー**
 - 音声入力での回答（日本語／英語）
-- ずかん・スタンプ・きせかえのアンロック
+- バッジ（なかま・きせかえ・おさら・はいけい・いきものバッジ）のアンロック
 - **アプリの呼び名とアイコンのカスタマイズ**（「たろうの アプリ」＋その子の写真）
 - 保護者向けの習熟度ダッシュボードと設定（ペアレンタルゲート付き）
 
@@ -27,7 +27,8 @@ Packages/PiyoCore/          ★ 純粋ロジック（Foundation のみ・UI/OS �
   Tests/PiyoCoreTests/      Unit Test（Xcode が無くても `swift test` で実行可能）
 PiyoStep/                   アプリ本体（SwiftUI）
   App/                      エントリポイント・DI コンテナ・起動引数
-  DesignSystem/             色・タイポ・大ボタン・コード描画のイラスト・演出
+  DesignSystem/             色・タイポ・大ボタン・イラスト・キャラクターの動き・演出
+  Resources/                Assets.xcassets（Fluent Emoji から描き出したイラスト・アプリアイコン）
   Services/                 Speech / AVFoundation / SwiftData / StoreKit / 広告
   ViewModels/               画面ごとの ViewModel
   Features/                 画面
@@ -38,9 +39,26 @@ Tools/                      Swift ツールチェーンが無い環境向けの�
 
 ### イラストについて
 
-画像アセットを一切持たず、キャラクター・動物・食べ物・お皿・時計はすべて
-SwiftUI の `Shape` / `Path` によるコード描画と SF Symbols で表現しています。
-リポジトリがテキストだけで完結し、差分レビューも容易です。
+キャラクター・ことばの絵・食べもの・バッジなどのイラストは、フリー素材の
+**[Fluent Emoji](https://github.com/microsoft/fluentui-emoji)**（Microsoft, MIT License）の
+Color 版を PNG（@2x / @3x）に描き出して `Assets.xcassets/Art` に入れています。
+アプリアイコンも同じ素材から生成しています。
+
+- `Tools/fetch_art_assets.py` … 素材のダウンロードと描き出し（`MANIFEST` が一覧）
+- `PiyoStep/DesignSystem/Art/ArtAsset.swift` … アプリの中の「なに」を「どの絵」で見せるかの対応表
+- `Tools/art_asset_check.py` … 上の 2 つと画像の有無が食い違っていないかの検査（CI で実行）
+- `PiyoStep/Resources/Credits/FluentEmoji-LICENSE.txt` … ライセンス全文（保護者画面の「つかっている素材」からも読める）
+
+絵は 1 枚の静止画ですが、`CharacterArtView` が「はずむ・ちぢむ・かたむく・気持ちの小物」を
+時間から計算して付けるので、うれしい・もぐもぐ・おやすみ・おうえん・きいている・かんがえ中 が伝わります。
+お皿・時計・バッジのふち・紙吹雪・光の帯など、素材で表せないものは引き続きコード描画です。
+
+素材を足すときは `MANIFEST` にキーと Fluent Emoji の名前を追加して、次を実行します。
+
+```bash
+pip install resvg-py pillow
+python3 Tools/fetch_art_assets.py <key>
+```
 
 ---
 
@@ -98,7 +116,7 @@ swift test --package-path Packages/PiyoCore
 
 | ジョブ | ランナー | 内容 |
 | --- | --- | --- |
-| 静的チェック | ubuntu-latest | `Tools/` の 6 種のチェック（ツールチェーン不要） |
+| 静的チェック | ubuntu-latest | `Tools/` の 7 種のチェック（ツールチェーン不要） |
 | PiyoCore の Unit Test | macos-15 | `swift test` |
 | アプリのビルドと Unit / UI Test | macos-15 | `Scripts/run_tests.sh` |
 
@@ -137,6 +155,7 @@ python3 Tools/switch_exhaustive_check.py Packages PiyoStep PiyoStepTests PiyoSte
 python3 Tools/swift_sanity.py           Packages PiyoStep PiyoStepTests PiyoStepUITests
 python3 Tools/symbol_check.py
 python3 Tools/view_init_check.py
+python3 Tools/art_asset_check.py
 ```
 
 - `swift_parse_check.py`: tree-sitter の Swift 文法で全ファイルを構文解析
@@ -148,6 +167,7 @@ python3 Tools/view_init_check.py
   トップレベル型名の重複
 - `symbol_check.py`: `A11yID` / `PiyoTheme` の参照、PiyoCore の公開範囲、
   `Skill` / `Subject` の網羅的 switch
+- `art_asset_check.py`: `ArtAsset` の名前・`fetch_art_assets.py` の一覧・画像の有無の突き合わせ
 - `view_init_check.py`: SwiftUI View のメンバーワイズ初期化子と呼び出し側の
   ラベル・順序・必須引数の整合
 

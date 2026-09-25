@@ -127,7 +127,7 @@ struct HomeView: View {
                 presentAfterDismiss { startFreePlay(skill: skill) }
             }
         case .collection:
-            CollectionView()
+            BadgeCollectionView()
         case .parentGate:
             ParentGateView(
                 onPass: {
@@ -273,8 +273,8 @@ struct HomeView: View {
     private var dailyChallengeCard: some View {
         BigButton(color: PiyoTheme.primary, minHeight: CGFloat(layout.sized(140)), action: startDailyChallenge) {
             HStack(spacing: 18) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 46, weight: .bold))
+                ArtImage(asset: .sparkles, size: CGFloat(layout.sized(64)))
+                    .shadow(color: PiyoTheme.shadow.opacity(0.25), radius: 6, y: 4)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("きょうの チャレンジ")
                         .piyoFont(.title)
@@ -298,8 +298,8 @@ struct HomeView: View {
     private var subjectsGrid: some View {
         LazyVGrid(columns: columns, spacing: CGFloat(layout.sized(16))) {
             ForEach(Array(environment.settings.enabledSubjects).sorted(by: { $0.rawValue < $1.rawValue })) { subject in
-                IconTitleButton(
-                    systemImage: icon(for: subject),
+                ArtTitleButton(
+                    asset: ArtCatalog.subject(subject),
                     title: subject.childTitle,
                     color: PiyoTheme.color(for: subject),
                     minHeight: CGFloat(layout.sized(126))
@@ -315,8 +315,8 @@ struct HomeView: View {
 
     private var bottomButtons: some View {
         HStack(spacing: CGFloat(layout.sized(16))) {
-            IconTitleButton(
-                systemImage: "fork.knife",
+            ArtTitleButton(
+                asset: .plate,
                 title: "ごはんタイマー",
                 color: PiyoTheme.success,
                 minHeight: CGFloat(layout.sized(116))
@@ -326,9 +326,9 @@ struct HomeView: View {
             }
             .accessibilityIdentifier(A11yID.homeMealTimer)
 
-            IconTitleButton(
-                systemImage: "books.vertical.fill",
-                title: "ずかん",
+            ArtTitleButton(
+                asset: .medal,
+                title: "バッジ",
                 color: PiyoTheme.calm,
                 minHeight: CGFloat(layout.sized(116))
             ) {
@@ -336,17 +336,6 @@ struct HomeView: View {
                 sheetRoute = .collection
             }
             .accessibilityIdentifier(A11yID.homeCollection)
-        }
-    }
-
-    private func icon(for subject: Subject) -> String {
-        switch subject {
-        case .clock: return "clock.fill"
-        case .hiragana: return "character.book.closed.fill"
-        case .katakana: return "textformat"
-        case .number: return "number"
-        case .alphabet: return "a.circle.fill"
-        case .englishWord: return "globe"
         }
     }
 

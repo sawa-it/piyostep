@@ -288,43 +288,95 @@ struct TracePanel: View {
         }
     }
 
+    /// ボタンを脇に置くときの幅。
+    private var sideButtonWidth: CGFloat { CGFloat(layout.sized(118)) }
+    private var buttonHeight: CGFloat { CGFloat(max(72, layout.sized(76))) }
+    private let gap: CGFloat = 12
+
+    /// 与えられた場所いっぱいにキャンバスを広げる。
+    /// 横に余裕があればボタンを右に立て、キャンバスを高さいっぱいにする。
     var body: some View {
-        VStack(spacing: 14) {
-            TraceCanvasView(
-                character: templateText,
-                showsTemplate: showsTemplate,
-                canvasSize: CGFloat(layout.artSized(280)),
-                strokes: $model.traceStrokes
-            )
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let height = proxy.size.height
+            let buttonsBeside = width >= height + sideButtonWidth + gap
+            let canvas: CGFloat = buttonsBeside
+                ? min(height, width - sideButtonWidth - gap)
+                : min(width, height - buttonHeight - gap)
+            let canvasSize = max(180, canvas)
 
-            HStack(spacing: 12) {
-                Button {
-                    model.traceStrokes = []
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text("けす")
-                            .piyoFont(.body)
+            Group {
+                if buttonsBeside {
+                    HStack(alignment: .center, spacing: gap) {
+                        canvasView(size: canvasSize)
+                        VStack(spacing: gap) {
+                            Spacer(minLength: 0)
+                            clearButton
+                            submitButton
+                            Spacer(minLength: 0)
+                        }
+                        .frame(width: sideButtonWidth, height: canvasSize)
                     }
-                    .foregroundStyle(PiyoTheme.textSoft)
-                    .frame(maxWidth: .infinity, minHeight: CGFloat(layout.sized(72)))
-                    .background(RoundedRectangle(cornerRadius: 18).fill(PiyoTheme.surfaceSunken))
+                } else {
+                    VStack(spacing: gap) {
+                        canvasView(size: canvasSize)
+                        HStack(spacing: gap) {
+                            clearButton
+                            submitButton
+                        }
+                        .frame(width: canvasSize)
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier(A11yID.sessionTraceClear)
+            }
+            .frame(width: width, height: height)
+        }
+        .frame(minHeight: 260)
+    }
 
-                BigButton(
-                    color: PiyoTheme.success,
-                    minHeight: CGFloat(layout.sized(72)),
-                    isEnabled: !model.traceStrokes.isEmpty,
-                    action: { model.submitTrace() }
-                ) {
-                    Text("できた！")
-                        .piyoFont(.headline)
-                }
-                .accessibilityIdentifier(A11yID.sessionTraceSubmit)
+    private func canvasView(size: CGFloat) -> some View {
+        TraceCanvasView(
+            character: templateText,
+            showsTemplate: showsTemplate,
+            canvasSize: size,
+            strokes: $model.traceStrokes
+        )
+    }
+
+    private var clearButton: some View {
+        Button {
+            model.traceStrokes = []
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.system(size: 24, weight: .bold))
+                Text("けす")
+                    .piyoFont(.body)
+            }
+            .foregroundStyle(PiyoTheme.textSoft)
+            .frame(maxWidth: .infinity, minHeight: buttonHeight)
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(PiyoTheme.surface.opacity(0.9)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(A11yID.sessionTraceClear)
+    }
+
+    private var submitButton: some View {
+        BigButton(
+            color: PiyoTheme.success,
+            minHeight: buttonHeight,
+            isEnabled: !model.traceStrokes.isEmpty,
+            action: { model.submitTrace() }
+        ) {
+            VStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 26, weight: .bold))
+                Text("できた！")
+                    .piyoFont(.headline)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
             }
         }
+        .accessibilityIdentifier(A11yID.sessionTraceSubmit)
     }
 }
 

@@ -1,112 +1,8 @@
 import SwiftUI
-import UIKit
 import PiyoCore
 
-/// 画像アセットを持たずにイラストを出すための仕組み。
-/// SF Symbols があればそれを使い、無ければ文字を大きく見せる。
-enum IllustrationCatalog {
-
-    /// かなの例語イラスト。候補の先頭から、存在するシンボルを使う。
-    static let kanaSymbols: [String: [String]] = [
-        "duck": ["bird.fill", "bird"],
-        "dog": ["dog.fill", "pawprint.fill"],
-        "horse": ["hare.fill"],
-        "pencil": ["pencil"],
-        "riceball": ["fork.knife"],
-        "umbrella": ["umbrella.fill"],
-        "giraffe": ["pawprint.fill"],
-        "bear": ["teddybear.fill", "pawprint.fill"],
-        "caterpillar": ["ladybug.fill", "ant.fill"],
-        "spinningtop": ["circle.hexagongrid.fill"],
-        "fish": ["fish.fill"],
-        "zebra": ["pawprint.fill"],
-        "watermelon": ["circle.fill"],
-        "cicada": ["ant.fill"],
-        "sled": ["snowflake"],
-        "drum": ["circle.circle.fill"],
-        "butterfly": ["ladybug.fill"],
-        "moon": ["moon.fill"],
-        "glove": ["hand.raised.fill"],
-        "clock": ["clock.fill"],
-        "eggplant": ["leaf.fill"],
-        "carrot": ["carrot.fill", "leaf.fill"],
-        "teddy": ["teddybear.fill"],
-        "cat": ["cat.fill", "pawprint.fill"],
-        "seaweed": ["leaf.fill"],
-        "flower": ["camera.macro"],
-        "airplane": ["airplane"],
-        "ship": ["ferry.fill", "sailboat.fill"],
-        "snake": ["scribble"],
-        "star": ["star.fill"],
-        "pillow": ["bed.double.fill"],
-        "orange": ["circle.fill"],
-        "bug": ["ant.fill"],
-        "glasses": ["eyeglasses"],
-        "peach": ["circle.fill"],
-        "vegetable": ["carrot.fill", "leaf.fill"],
-        "snow": ["snowflake"],
-        "clothes": ["tshirt.fill"],
-        "lion": ["pawprint.fill"],
-        "apple": ["circle.fill"],
-        "house": ["house.fill"],
-        "fridge": ["refrigerator.fill", "square.fill"],
-        "candle": ["flame.fill"],
-        "crocodile": ["pawprint.fill"],
-        "bread": ["birthday.cake.fill", "fork.knife"],
-        "particle": ["textformat"]
-    ]
-
-    /// 英単語のイラスト。
-    static let englishSymbols: [String: [String]] = [
-        "apple": ["circle.fill"],
-        "dog": ["dog.fill", "pawprint.fill"],
-        "cat": ["cat.fill", "pawprint.fill"],
-        "car": ["car.fill"],
-        "sun": ["sun.max.fill"],
-        "moon": ["moon.fill"],
-        "red": ["paintpalette.fill"],
-        "blue": ["paintpalette.fill"],
-        "green": ["paintpalette.fill"],
-        "yellow": ["paintpalette.fill"],
-        "mom": ["figure.and.child.holdinghands", "person.fill"],
-        "dad": ["figure.and.child.holdinghands", "person.fill"],
-        "lion": ["pawprint.fill"],
-        "fish": ["fish.fill"],
-        "bird": ["bird.fill"],
-        "egg": ["oval.fill"],
-        "milk": ["cup.and.saucer.fill"],
-        "ball": ["circle.fill"],
-        "tree": ["tree.fill", "leaf.fill"],
-        "star": ["star.fill"],
-        "grape": ["circle.grid.2x2.fill"],
-        "hat": ["graduationcap.fill"],
-        "ice": ["snowflake"],
-        "juice": ["cup.and.saucer.fill"],
-        "key": ["key.fill"],
-        "nose": ["face.smiling.inverse", "face.smiling"],
-        "orange": ["circle.fill"],
-        "pig": ["pawprint.fill"],
-        "queen": ["crown.fill"],
-        "umbrella": ["umbrella.fill"],
-        "van": ["bus.fill", "car.fill"],
-        "water": ["drop.fill"],
-        "box": ["shippingbox.fill"],
-        "zebra": ["pawprint.fill"]
-    ]
-
-    /// 数えるものの形。
-    static let countableSymbols: [CountableObject: [String]] = [
-        .apple: ["circle.fill"],
-        .star: ["star.fill"],
-        .fish: ["fish.fill"],
-        .ball: ["circle.fill"],
-        .candy: ["circle.hexagongrid.fill"],
-        .flower: ["camera.macro"],
-        .car: ["car.fill"],
-        .bear: ["teddybear.fill", "pawprint.fill"]
-    ]
-
-    /// 数えるものの色。
+/// 数えるものの色（背景の丸に使う）。
+enum IllustrationPalette {
     static func color(for object: CountableObject) -> Color {
         switch object {
         case .apple: return Color(red: 0.90, green: 0.32, blue: 0.30)
@@ -119,31 +15,44 @@ enum IllustrationCatalog {
         case .bear: return Color(red: 0.74, green: 0.58, blue: 0.44)
         }
     }
-
-    /// 端末に存在する最初のシンボル名を返す。
-    static func firstAvailableSymbol(_ candidates: [String]) -> String? {
-        candidates.first { UIImage(systemName: $0) != nil }
-    }
 }
 
-/// シンボル or 文字でイラストを描く。
+/// 丸い台の上にイラストを置く。絵が無いときは文字を大きく見せる。
+///
+/// 台は上を明るくした色の面にして、絵に薄い影を落とす。
+/// 平らな単色の丸に置くより、絵が「そこにある」ように見える。
 struct IllustrationView: View {
-    var symbolCandidates: [String]
-    /// シンボルが無いときに大きく出す文字（例語の 1 文字目）
+    var asset: ArtAsset?
+    /// 絵が無いときに大きく出す文字（例語の 1 文字目）
     var fallbackText: String
     var tint: Color
     var size: CGFloat = 96
+    /// 出たときに小さくはずむ。
+    var popsIn: Bool = true
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hasAppeared = false
+
+    private var shouldPop: Bool {
+        popsIn && !PiyoMotion.isReduced(accessibilityReduceMotion: reduceMotion)
+    }
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(tint.opacity(0.18))
-            if let symbol = IllustrationCatalog.firstAvailableSymbol(symbolCandidates) {
-                Image(systemName: symbol)
-                    .resizable()
-                    .scaledToFit()
-                    .padding(size * 0.24)
-                    .foregroundStyle(tint)
+                .fill(
+                    LinearGradient(
+                        colors: [tint.opacity(0.10), tint.opacity(0.26)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            Circle()
+                .stroke(tint.opacity(0.22), lineWidth: max(1.5, size * 0.02))
+
+            if let asset, asset.exists {
+                ArtImage(asset: asset, size: size * 0.70)
+                    .shadow(color: PiyoTheme.shadow.opacity(0.18), radius: size * 0.05, y: size * 0.04)
             } else {
                 Text(fallbackText)
                     .font(PiyoTheme.childFont(size: size * 0.46, weight: .heavy))
@@ -154,6 +63,14 @@ struct IllustrationView: View {
             }
         }
         .frame(width: size, height: size)
+        .scaleEffect(shouldPop && !hasAppeared ? 0.6 : 1)
+        .opacity(shouldPop && !hasAppeared ? 0 : 1)
+        .onAppear {
+            guard shouldPop else { return }
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.62)) {
+                hasAppeared = true
+            }
+        }
     }
 }
 
@@ -167,7 +84,7 @@ struct KanaWordIllustration: View {
     var body: some View {
         VStack(spacing: 8) {
             IllustrationView(
-                symbolCandidates: IllustrationCatalog.kanaSymbols[card.illustration] ?? [],
+                asset: ArtCatalog.kanaWord(card: card, subject: subject),
                 fallbackText: String(card.word(for: subject).prefix(1)),
                 tint: PiyoTheme.color(for: subject),
                 size: size
@@ -192,7 +109,7 @@ struct EnglishWordIllustration: View {
     var body: some View {
         VStack(spacing: 6) {
             IllustrationView(
-                symbolCandidates: IllustrationCatalog.englishSymbols[card.id] ?? [],
+                asset: ArtCatalog.english[card.illustration],
                 fallbackText: String(card.english.prefix(1)).uppercased(),
                 tint: PiyoTheme.color(for: .englishWord),
                 size: size
@@ -219,9 +136,16 @@ struct CountableObjectsView: View {
     var tappedIndices: Set<Int> = []
     var onTap: ((Int) -> Void)? = nil
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var appearedCount = 0
+
     private var columns: [GridItem] {
         let columnCount = min(maximumColumns, max(1, count))
         return Array(repeating: GridItem(.flexible(), spacing: 10), count: columnCount)
+    }
+
+    private var shouldStagger: Bool {
+        onTap != nil && !PiyoMotion.isReduced(accessibilityReduceMotion: reduceMotion)
     }
 
     var body: some View {
@@ -230,25 +154,56 @@ struct CountableObjectsView: View {
                 Button {
                     onTap?(index)
                 } label: {
-                    IllustrationView(
-                        symbolCandidates: IllustrationCatalog.countableSymbols[kind] ?? ["circle.fill"],
-                        fallbackText: String(kind.childName.prefix(1)),
-                        tint: IllustrationCatalog.color(for: kind),
-                        size: itemSize
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(PiyoTheme.success, lineWidth: 4)
-                            .opacity(tappedIndices.contains(index) ? 1 : 0)
-                    )
-                    .scaleEffect(tappedIndices.contains(index) ? 0.9 : 1)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.6), value: tappedIndices.contains(index))
+                    item(index: index)
                 }
                 .buttonStyle(.plain)
                 .disabled(onTap == nil)
             }
         }
+        .onAppear {
+            guard shouldStagger else {
+                appearedCount = count
+                return
+            }
+            // ひとつずつ順に出すと、数えるものの「数」に目が向く。
+            for index in 0 ..< max(0, count) {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.62).delay(Double(index) * 0.05)) {
+                    appearedCount = index + 1
+                }
+            }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(kind.childName)が \(count)こ")
+    }
+
+    private func item(index: Int) -> some View {
+        let isCounted = tappedIndices.contains(index)
+        let isVisible = !shouldStagger || index < appearedCount
+        return ZStack {
+            IllustrationView(
+                asset: ArtCatalog.countable(kind),
+                fallbackText: String(kind.childName.prefix(1)),
+                tint: IllustrationPalette.color(for: kind),
+                size: itemSize,
+                popsIn: false
+            )
+            .saturation(isCounted ? 0.55 : 1)
+            .overlay(
+                Circle()
+                    .stroke(PiyoTheme.success, lineWidth: max(3, itemSize * 0.07))
+                    .opacity(isCounted ? 1 : 0)
+            )
+            // 数えた印。丸の右上に小さく出す。
+            if isCounted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: max(14, itemSize * 0.34), weight: .bold))
+                    .foregroundStyle(.white, PiyoTheme.success)
+                    .offset(x: itemSize * 0.34, y: -itemSize * 0.34)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .scaleEffect(isVisible ? (isCounted ? 0.92 : 1) : 0.4)
+        .opacity(isVisible ? 1 : 0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isCounted)
     }
 }

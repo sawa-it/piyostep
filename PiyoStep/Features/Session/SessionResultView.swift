@@ -59,11 +59,20 @@ struct SessionResultView: View {
     }
 
     private var character: some View {
-        CharacterArtView(
-            character: environment.buddyCharacter,
-            mood: .happy,
-            size: CGFloat(layout.artSized(170))
-        )
+        ZStack {
+            // 後ろで光の帯がゆっくり回る。「がんばった」の主役感を出す。
+            SunburstView(color: PiyoTheme.cheer)
+                .frame(width: CGFloat(layout.artSized(260)), height: CGFloat(layout.artSized(260)))
+                .clipShape(Circle())
+            CharacterArtView(
+                character: environment.buddyCharacter,
+                mood: .cheering,
+                size: CGFloat(layout.artSized(170))
+            )
+            ArtImage(asset: .trophy, size: CGFloat(layout.artSized(64)))
+                .offset(x: CGFloat(layout.artSized(88)), y: CGFloat(layout.artSized(48)))
+                .shadow(color: PiyoTheme.shadow.opacity(0.2), radius: 6, y: 4)
+        }
     }
 
     private var message: some View {
@@ -78,9 +87,7 @@ struct SessionResultView: View {
         PiyoCard {
             VStack(spacing: CGFloat(layout.sized(18))) {
                 HStack(spacing: 10) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: CGFloat(layout.fontSize(34))))
-                        .foregroundStyle(PiyoTheme.cheer)
+                    ArtImage(asset: .star, size: CGFloat(layout.fontSize(40)))
                     Text("★ \(summary.starsEarned)")
                         .piyoFont(.title)
                         .foregroundStyle(PiyoTheme.text)

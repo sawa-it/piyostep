@@ -38,6 +38,8 @@ jobs:
         run: python3 Tools/symbol_check.py
       - name: View の初期化子
         run: python3 Tools/view_init_check.py
+      - name: イラスト素材の対応
+        run: python3 Tools/art_asset_check.py
 
   # ドメインロジックだけなら Xcode 無しでも実行できる。
   core-tests:
