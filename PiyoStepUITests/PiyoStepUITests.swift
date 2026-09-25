@@ -46,18 +46,23 @@ final class PiyoStepUITests: XCTestCase {
 
         // どの教科が出ても答えられるようにしてある。
         var guardCount = 0
-        while !app.element(id: A11yID.result).exists && guardCount < 40 {
+        var stuck = 0
+        while !app.element(id: A11yID.result).exists && guardCount < 60 {
             guardCount += 1
             if app.answerCurrentQuestion(timeout: 3) {
+                stuck = 0
                 app.continueAfterFeedback(timeout: 6)
             } else {
+                stuck += 1
+                // 何度やっても答えられないなら、粘らずに失敗させる
+                if stuck >= 5 { break }
                 RunLoop.current.run(until: Date().addingTimeInterval(0.3))
             }
         }
 
         XCTAssertTrue(
             app.element(id: A11yID.result).waitUntilExists(),
-            "チャレンジが結果画面まで到達しない"
+            "チャレンジが結果画面まで到達しない / \(app.screenSummary())"
         )
         XCTAssertTrue(app.element(id: A11yID.resultStars).exists)
         app.tappable(A11yID.resultDone).waitAndTap()
@@ -109,8 +114,15 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertTrue(app.tappable("\(A11yID.sessionModePicker)numberPad").exists)
 
         // 数字入力に切り替えて答える
-        app.tappable("\(A11yID.sessionModePicker)numberPad").waitAndTap()
-        app.tappable("\(A11yID.sessionNumberPadDigit)3").waitAndTap()
+        XCTAssertTrue(app.switchAnswerMode(to: "numberPad"), "数字入力に切り替えられない")
+
+        // モード切替後にパッドが組み上がるまで待つ
+        let digit = app.element(id: "\(A11yID.sessionNumberPadDigit)3")
+        XCTAssertTrue(
+            digit.waitForExistence(timeout: UITest.defaultTimeout),
+            "数字パッドが出ない / \(app.screenSummary())"
+        )
+        digit.waitAndTap()
         app.tappable(A11yID.sessionNumberPadSubmit).waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.sessionFeedback).waitUntilExists())
     }
@@ -242,11 +254,23 @@ final class PiyoStepUITests: XCTestCase {
         app.tappable("設定").waitAndTap()
 
         let voiceAnswerToggle = app.switches[A11yID.settingsVoiceAnswer]
-        XCTAssertTrue(voiceAnswerToggle.waitUntilExists())
+        XCTAssertTrue(voiceAnswerToggle.waitUntilExists(), "設定にトグルが出ない / \(app.screenSummary())")
+        XCTAssertTrue(voiceAnswerToggle.scrollIntoView(), "トグルが画面外のまま / \(app.screenSummary())")
         let before = voiceAnswerToggle.value as? String
-        voiceAnswerToggle.tap()
-        let after = voiceAnswerToggle.value as? String
-        XCTAssertNotEqual(before, after, "設定が切り替わらない")
+
+        // Form の Toggle は行全体がひとつの要素になるので、中央ではなくスイッチ側（右端）を押す。
+        voiceAnswerToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+
+        // 値の反映はアニメーションを挟むので、変わるまで少し待つ。
+        let deadline = Date().addingTimeInterval(5)
+        while (voiceAnswerToggle.value as? String) == before, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        XCTAssertNotEqual(
+            before,
+            voiceAnswerToggle.value as? String,
+            "設定が切り替わらない / \(app.screenSummary())"
+        )
 
         // 設定した内容で子ども画面に戻れること
         app.tappable(A11yID.parentClose).waitAndTap()

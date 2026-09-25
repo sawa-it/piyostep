@@ -43,12 +43,31 @@ extension XCUIElement {
             return false
         }
         // 画面外にある場合はスクロールを促すため、ヒットできるまで少し待つ。
-        let hittableDeadline = Date().addingTimeInterval(3)
+        let hittableDeadline = Date().addingTimeInterval(1.5)
         while !isHittable && Date() < hittableDeadline {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
+        // それでも届かないなら、入れ物をスクロールして画面内に入れる。
+        scrollIntoView()
         tap()
         return true
+    }
+
+    /// スクロールの外にある要素を画面内まで運ぶ。
+    /// 画面中央をなぞると時計の針やなぞり書きに触れてしまうので、左端を使う。
+    @discardableResult
+    func scrollIntoView(maxAttempts: Int = 4) -> Bool {
+        if isHittable { return true }
+        let app = XCUIApplication()
+        for _ in 0 ..< maxAttempts {
+            app.scrollContent(up: true)
+            if isHittable { return true }
+        }
+        for _ in 0 ..< maxAttempts * 2 {
+            app.scrollContent(up: false)
+            if isHittable { return true }
+        }
+        return isHittable
     }
 
     func waitUntilExists(timeout: TimeInterval = UITest.defaultTimeout) -> Bool {
@@ -69,23 +88,78 @@ extension XCUIApplication {
         return button.exists ? button : element(id: id)
     }
 
+    /// スクロールできる入れ物（ScrollView / Form）を探す。
+    var scrollContainer: XCUIElement {
+        for candidate in [scrollViews.firstMatch, collectionViews.firstMatch, tables.firstMatch]
+        where candidate.exists {
+            return candidate
+        }
+        return self
+    }
+
+    /// 入れ物の左端をドラッグしてスクロールする。
+    /// 中央から引くと、時計の針・なぞり書き・スライダーを操作してしまう。
+    func scrollContent(up: Bool) {
+        let container = scrollContainer
+        guard container.exists else { return }
+        let from = container.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: up ? 0.85 : 0.2))
+        let to = container.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: up ? 0.2 : 0.85))
+        from.press(forDuration: 0.05, thenDragTo: to)
+    }
+
+    /// 失敗メッセージに添える画面の要約。
+    /// CI ではログ本体を読めず annotation（＝アサーションの文言）しか見えないので、
+    /// 何が出ていたのかを 1 行に畳んで残す。括弧付きはタップできない要素。
+    func screenSummary(limit: Int = 24) -> String {
+        var seen: [String] = []
+        for element in descendants(matching: .any).allElementsBoundByIndex {
+            let identifier = element.identifier
+            guard !identifier.isEmpty else { continue }
+            let entry = element.isHittable ? identifier : "(\(identifier))"
+            guard !seen.contains(entry) else { continue }
+            seen.append(entry)
+            if seen.count >= limit { break }
+        }
+        return seen.isEmpty ? "識別子なし" : seen.joined(separator: " ")
+    }
+
+    /// 回答方法を切り替える。切り替えられたら true。
+    @discardableResult
+    func switchAnswerMode(to mode: String) -> Bool {
+        let button = tappable("\(A11yID.sessionModePicker)\(mode)")
+        guard button.exists else { return false }
+        guard button.scrollIntoView() else { return false }
+        button.tap()
+        return true
+    }
+
     /// 画面に出ている問題に、種類を問わず答える。
     /// どの教科が出ても 1 つのヘルパーで進められるようにする。
     @discardableResult
     func answerCurrentQuestion(timeout: TimeInterval = UITest.defaultTimeout) -> Bool {
+        // 0) 「こえ」が既定で選ばれている問題は、タップで答えられるモードに切り替える。
+        //    かずの よみかた などは answerModes の先頭が .voice なので、
+        //    音声が使える端末では最初から音声パネルが出ている。
+        if !element(id: "\(A11yID.sessionChoice)0").exists,
+           !element(id: "\(A11yID.sessionNumberPadDigit)1").exists {
+            if !switchAnswerMode(to: "choice") {
+                switchAnswerMode(to: "numberPad")
+            }
+        }
+
         // 1) 時計の針を合わせる問題
         let clockSubmit = tappable(A11yID.sessionClockSubmit)
-        if clockSubmit.exists && clockSubmit.isHittable {
+        if clockSubmit.exists && clockSubmit.scrollIntoView() {
             clockSubmit.tap()
             return true
         }
 
         // 2) なぞり書き
         let traceCanvas = element(id: A11yID.sessionTraceCanvas)
-        if traceCanvas.exists && traceCanvas.isHittable {
+        if traceCanvas.exists && traceCanvas.scrollIntoView() {
             scribble(on: traceCanvas)
             let traceSubmit = tappable(A11yID.sessionTraceSubmit)
-            if traceSubmit.exists && traceSubmit.isHittable {
+            if traceSubmit.exists && traceSubmit.scrollIntoView() {
                 traceSubmit.tap()
                 return true
             }
@@ -93,17 +167,17 @@ extension XCUIApplication {
 
         // 3) 選択肢
         let firstChoice = tappable("\(A11yID.sessionChoice)0")
-        if firstChoice.waitForExistence(timeout: 2) && firstChoice.isHittable {
+        if firstChoice.waitForExistence(timeout: 2) && firstChoice.scrollIntoView() {
             firstChoice.tap()
             return true
         }
 
         // 4) 数字入力
         let digit = tappable("\(A11yID.sessionNumberPadDigit)1")
-        if digit.exists && digit.isHittable {
+        if digit.exists && digit.scrollIntoView() {
             digit.tap()
             let submit = tappable(A11yID.sessionNumberPadSubmit)
-            if submit.exists && submit.isHittable {
+            if submit.exists && submit.scrollIntoView() {
                 submit.tap()
                 return true
             }

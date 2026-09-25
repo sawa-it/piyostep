@@ -557,6 +557,10 @@ def check_property_access(files: list[Path], types: dict[str, TypeInfo]) -> list
             info = types.get(type_name)
             if info is None or info.duplicated or type_name in SKIPPED_TYPES:
                 continue
+            # extension しか見えていない型（XCUIElement など、外部フレームワークの型）は
+            # メンバーの全体像が分からないので検査しない。
+            if info.kind == "extension":
+                continue
             if member in SYNTHESISED_MEMBERS:
                 continue
             if member in info.instance_members or member in info.static_members:
