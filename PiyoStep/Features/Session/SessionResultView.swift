@@ -170,9 +170,13 @@ struct SessionResultView: View {
             }
 
             VStack(spacing: 12) {
+                // 識別子は入れ物ではなく見出しそのものに付ける。
+                // 入れ物に付けると、外側の result.root と重なって消えるか、
+                // 中身がひとつにまとめられて「ホームへ」が消えるかのどちらかになる。
                 Text("きょうの がんばり")
                     .font(PiyoTheme.titleFont)
                     .foregroundStyle(PiyoTheme.text)
+                    .accessibilityIdentifier(A11yID.resultParent)
 
                 AdaptivePanes(spacing: 20) {
                     VStack(spacing: 16) {
@@ -232,10 +236,6 @@ struct SessionResultView: View {
             }
             .padding(20)
         }
-        // children: .contain を付けないと中身がひとつの要素にまとめられ、
-        // 「ホームへ」などがアクセシビリティツリーから消えてしまう。
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(A11yID.resultParent)
     }
 
     /// この回の振り返り。記録から組み立てるので、問題文そのものは出せない。

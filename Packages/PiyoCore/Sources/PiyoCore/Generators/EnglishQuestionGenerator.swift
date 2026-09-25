@@ -84,7 +84,8 @@ public struct AlphabetWriteQuestionGenerator: QuestionGenerating {
             ],
             // なぞりは習熟度に算入せず、自由書き（Lv4 以上）だけを「かき」として数える。
             itemID: .alphabet(card.uppercase),
-            ability: task == .write ? .write : nil
+            ability: task == .write ? .write : nil,
+            expectedStrokeCount: StrokeCounts.count(for: card.uppercase)
         )
     }
 }

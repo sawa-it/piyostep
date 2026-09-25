@@ -221,7 +221,12 @@ final class SessionViewModel {
         guard let question = currentQuestion else { return }
         let text = AnswerGrader.correctAnswerDisplay(for: question)
         let mask = GlyphMaskRenderer.mask(for: text)
-        let evaluation = TraceEvaluator.evaluate(mask: mask, strokes: traceStrokes, brushRadius: 0.075)
+        let evaluation = TraceEvaluator.evaluate(
+            mask: mask,
+            strokes: traceStrokes,
+            brushRadius: 0.075,
+            expectedStrokeCount: question.expectedStrokeCount
+        )
         submit(.trace(coverage: evaluation.score))
     }
 

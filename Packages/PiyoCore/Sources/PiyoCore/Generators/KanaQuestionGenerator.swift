@@ -116,7 +116,8 @@ public struct KanaWriteQuestionGenerator: QuestionGenerating {
             // なぞり書きはお手本の上をなぞるだけなので、書きの習熟度には算入しない。
             // お手本なしの自由書き（Lv4 以上）だけを「かき」として数える。
             itemID: .kana(character, subject: subject),
-            ability: task == .write ? .write : nil
+            ability: task == .write ? .write : nil,
+            expectedStrokeCount: StrokeCounts.count(for: character)
         )
     }
 }

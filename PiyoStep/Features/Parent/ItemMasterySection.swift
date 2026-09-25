@@ -53,20 +53,18 @@ struct ItemMasterySection: View {
 
     private var averageRow: some View {
         HStack(spacing: 16) {
-            ForEach(abilities, id: \.self) { ability in
-                HStack(spacing: 6) {
-                    Text(ability.parentTitle)
-                        .font(.caption)
+            HStack(spacing: 6) {
+                Text(LearningAbility.read.parentTitle)
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+                if let average = model.averagePercent(for: category, ability: .read) {
+                    Text("\(average)%")
+                        .font(.headline)
+                        .monospacedDigit()
+                } else {
+                    Text("—")
+                        .font(.headline)
                         .foregroundStyle(Color.secondary)
-                    if let average = model.averagePercent(for: category, ability: ability) {
-                        Text("\(average)%")
-                            .font(.headline)
-                            .monospacedDigit()
-                    } else {
-                        Text("—")
-                            .font(.headline)
-                            .foregroundStyle(Color.secondary)
-                    }
                 }
             }
             Spacer(minLength: 0)
@@ -85,24 +83,30 @@ struct ItemMasterySection: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
 
-            ForEach(abilities, id: \.self) { ability in
-                let mastery = ability == .read ? read : write
+            HStack(spacing: 4) {
+                Text(LearningAbility.read.parentTitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color.secondary)
+                Spacer(minLength: 0)
+                Text(read.map { "\($0.percent)" } ?? "–")
+                    .font(.system(size: 13, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(color(for: read))
+            }
+
+            // かきは回数だけ出す。形の評価はまだ精度が足りず、
+            // パーセントにすると「書けている」と誤解させてしまう。
+            if abilities.contains(.write) {
                 HStack(spacing: 4) {
-                    Text(ability.parentTitle)
+                    Text(LearningAbility.write.parentTitle)
                         .font(.system(size: 10))
                         .foregroundStyle(Color.secondary)
                     Spacer(minLength: 0)
-                    Text(mastery.map { "\($0.percent)" } ?? "–")
+                    Text(writeCountText(write: write, practice: practice))
                         .font(.system(size: 13, weight: .semibold))
                         .monospacedDigit()
-                        .foregroundStyle(color(for: mastery))
+                        .foregroundStyle(Color.secondary)
                 }
-            }
-
-            if practice > 0, write == nil, abilities.contains(.write) {
-                Text("なぞり \(practice)")
-                    .font(.system(size: 9))
-                    .foregroundStyle(Color.secondary)
             }
         }
         .padding(8)
@@ -113,6 +117,12 @@ struct ItemMasterySection: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(item: item, read: read, write: write))
+    }
+
+    /// かきの回数。自由書きとなぞりを合わせた「やった回数」。
+    private func writeCountText(write: ItemMastery?, practice: Int) -> String {
+        let total = (write?.attempts ?? 0) + practice
+        return total == 0 ? "–" : "\(total)かい"
     }
 
     /// 未実施はグレー、低いほど赤寄り、高いほど緑寄り。
@@ -147,6 +157,6 @@ struct ItemMasterySection: View {
     private var footnote: String {
         category == .number
             ? "数字は「よみ」のみ記録しています。1回で正解すると100%、まちがえると下がります。"
-            : "「かき」は、お手本なしで書く問題だけを数えています。なぞり書きは練習回数として別に表示します。"
+            : "「かき」は やった回数だけを出しています。書けた形を 正しく評価する仕組みが未完成のため、割合は出していません。"
     }
 }

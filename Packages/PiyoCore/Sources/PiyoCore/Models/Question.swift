@@ -14,6 +14,8 @@ public struct Question: Identifiable, Equatable, Sendable {
     public let itemID: LearningItemID?
     /// この問題で測れる力。習熟度に算入しない練習（なぞり書きなど）では nil。
     public let ability: LearningAbility?
+    /// お手本の画数。書きの評価に使う。分からなければ nil。
+    public let expectedStrokeCount: Int?
 
     public var subject: Subject { skill.subject }
 
@@ -27,7 +29,8 @@ public struct Question: Identifiable, Equatable, Sendable {
         answerModes: [AnswerMode],
         choices: [AnswerChoice] = [],
         itemID: LearningItemID? = nil,
-        ability: LearningAbility? = nil
+        ability: LearningAbility? = nil,
+        expectedStrokeCount: Int? = nil
     ) {
         self.id = id
         self.skill = skill
@@ -39,6 +42,7 @@ public struct Question: Identifiable, Equatable, Sendable {
         self.choices = choices
         self.itemID = itemID
         self.ability = ability
+        self.expectedStrokeCount = expectedStrokeCount
     }
 
     /// 音声回答が使えるか（設定で OFF の場合は呼び出し側で除外する）。
