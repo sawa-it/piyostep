@@ -18,6 +18,7 @@ final class AppEnvironment {
     let haptics: HapticFeedbackProviding
     let purchaseService: PurchaseServing
     let adPresenter: AdPresenting
+    let profileImageStore: ProfileImageStoring
     let random: RandomSource
     let clock: ClockProviding
 
@@ -51,6 +52,7 @@ final class AppEnvironment {
         haptics: HapticFeedbackProviding,
         purchaseService: PurchaseServing,
         adPresenter: AdPresenting,
+        profileImageStore: ProfileImageStoring = InMemoryProfileImageStore(),
         random: RandomSource = SystemRandomSource(),
         clock: ClockProviding = SystemClock(),
         launchArguments: LaunchArguments = .none
@@ -63,6 +65,7 @@ final class AppEnvironment {
         self.haptics = haptics
         self.purchaseService = purchaseService
         self.adPresenter = adPresenter
+        self.profileImageStore = profileImageStore
         self.random = random
         self.clock = clock
         self.launchArguments = launchArguments
@@ -114,8 +117,47 @@ final class AppEnvironment {
     // MARK: - プロフィール・設定
 
     func save(profile newProfile: ChildProfile) {
+        // 使われなくなった写真は消しておく（端末に溜めない）。
+        if let oldPhoto = profile?.avatar.photoFileName,
+           oldPhoto != newProfile.avatar.photoFileName {
+            profileImageStore.delete(named: oldPhoto)
+        }
         profile = newProfile
         settingsStore.saveProfile(newProfile)
+    }
+
+    /// アプリの中で使う呼び名。ホーム画面のアプリ名は iOS では変えられない。
+    var appDisplayName: String {
+        AppNaming.displayName(custom: settings.appDisplayName)
+    }
+
+    /// いま選ばれているアイコン。
+    var avatar: ProfileAvatar {
+        profile?.avatar ?? .default
+    }
+
+    /// アイコン写真の中身。無ければ nil（呼び出し側はキャラクターの絵を出す）。
+    func avatarImageData() -> Data? {
+        guard let name = avatar.photoFileName else { return nil }
+        return profileImageStore.imageData(named: name)
+    }
+
+    /// 写真を保存してアイコンに設定する。保存できなければ false。
+    @discardableResult
+    func updateAvatarPhoto(data: Data) -> Bool {
+        guard let profile, let name = profileImageStore.save(imageData: data) else { return false }
+        var updated = profile
+        updated.avatar = .photo(name)
+        save(profile: updated)
+        return true
+    }
+
+    /// 写真をやめて、キャラクターの絵に戻す。
+    func updateAvatar(characterID: String) {
+        guard let profile else { return }
+        var updated = profile
+        updated.avatar = .character(characterID)
+        save(profile: updated)
     }
 
     func update(settings newSettings: AppSettings) {

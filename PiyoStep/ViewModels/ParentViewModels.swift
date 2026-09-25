@@ -66,6 +66,8 @@ final class SettingsViewModel {
     var childName: String
     var childAge: Int
     var buddyCharacterID: String
+    /// 写真を取り込めなかったときに出す一言。
+    var avatarError: String?
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -89,9 +91,65 @@ final class SettingsViewModel {
             nickname: childName,
             age: childAge,
             buddyCharacterID: buddyCharacterID,
+            // アイコンはこの画面の別の操作で決めるので、いまの設定を引き継ぐ。
+            avatar: environment.profile?.avatar,
             createdAt: environment.profile?.createdAt ?? environment.clock.now
         )
         environment.save(profile: profile)
+    }
+
+    // MARK: - アプリの呼び名
+
+    /// いま画面に出ている名前。
+    var appDisplayName: String { AppNaming.displayName(custom: draft.appDisplayName) }
+
+    /// 子どもの名前から作る候補。いまの名前と同じなら出さない。
+    var appNameSuggestion: String? {
+        let profile = ChildProfile(nickname: childName, age: childAge)
+        guard let suggestion = AppNaming.suggestion(for: profile) else { return nil }
+        return suggestion == AppNaming.sanitize(draft.appDisplayName) ? nil : suggestion
+    }
+
+    var isUsingDefaultAppName: Bool {
+        AppNaming.sanitize(draft.appDisplayName).isEmpty
+    }
+
+    func useSuggestedAppName() {
+        guard let suggestion = appNameSuggestion else { return }
+        draft.appDisplayName = suggestion
+        apply()
+    }
+
+    func resetAppName() {
+        draft.appDisplayName = ""
+        apply()
+    }
+
+    // MARK: - じぶんの アイコン
+
+    var avatar: ProfileAvatar { environment.avatar }
+
+    var avatarPhotoData: Data? { environment.avatarImageData() }
+
+    var isUsingPhotoAvatar: Bool { environment.avatar.photoFileName != nil }
+
+    /// 写真を取り込む。整えた JPEG だけを端末に保存する。
+    func useAvatarPhoto(data: Data?) {
+        guard let data, !data.isEmpty else {
+            avatarError = "しゃしんを よみこめませんでした"
+            return
+        }
+        guard environment.updateAvatarPhoto(data: data) else {
+            avatarError = "しゃしんを ほぞんできませんでした"
+            return
+        }
+        avatarError = nil
+    }
+
+    /// 写真をやめて、あいぼうの絵に戻す。
+    func useCharacterAvatar() {
+        environment.updateAvatar(characterID: buddyCharacterID)
+        avatarError = nil
     }
 
     func toggle(subject: Subject) {

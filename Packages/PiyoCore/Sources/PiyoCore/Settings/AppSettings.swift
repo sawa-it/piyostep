@@ -21,6 +21,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var adsRemoved: Bool
     /// 触覚フィードバック
     public var hapticsEnabled: Bool
+    /// アプリの中で使う呼び名（空なら既定の名前）。
+    /// ホーム画面のアプリ名は iOS では変えられないので、変わるのはアプリの中だけ。
+    public var appDisplayName: String
 
     public static let mealDurationPresets = [10, 15, 20, 30]
     public static let mealDurationRange = 3 ... 60
@@ -35,7 +38,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         dailyGoal: DailyGoal = .normal,
         enabledSubjects: Set<Subject> = Set(Subject.allCases),
         adsRemoved: Bool = false,
-        hapticsEnabled: Bool = true
+        hapticsEnabled: Bool = true,
+        appDisplayName: String = ""
     ) {
         self.difficultyMode = difficultyMode
         self.volume = min(max(volume, 0), 1)
@@ -50,6 +54,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.enabledSubjects = enabledSubjects.isEmpty ? Set(Subject.allCases) : enabledSubjects
         self.adsRemoved = adsRemoved
         self.hapticsEnabled = hapticsEnabled
+        self.appDisplayName = AppNaming.sanitize(appDisplayName)
     }
 
     public static let `default` = AppSettings()
@@ -71,7 +76,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
             dailyGoal: dailyGoal,
             enabledSubjects: enabledSubjects,
             adsRemoved: adsRemoved,
-            hapticsEnabled: hapticsEnabled
+            hapticsEnabled: hapticsEnabled,
+            appDisplayName: appDisplayName
         )
     }
 
@@ -83,7 +89,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case difficultyMode, volume, voiceGuidanceEnabled, voiceAnswerEnabled
         case mealDurationMinutes, mealCharacterID, dailyGoal, enabledSubjects
-        case adsRemoved, hapticsEnabled
+        case adsRemoved, hapticsEnabled, appDisplayName
     }
 
     public init(from decoder: Decoder) throws {
@@ -99,7 +105,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
             dailyGoal: (try? container.decode(DailyGoal.self, forKey: .dailyGoal)) ?? fallback.dailyGoal,
             enabledSubjects: (try? container.decode(Set<Subject>.self, forKey: .enabledSubjects)) ?? fallback.enabledSubjects,
             adsRemoved: (try? container.decode(Bool.self, forKey: .adsRemoved)) ?? fallback.adsRemoved,
-            hapticsEnabled: (try? container.decode(Bool.self, forKey: .hapticsEnabled)) ?? fallback.hapticsEnabled
+            hapticsEnabled: (try? container.decode(Bool.self, forKey: .hapticsEnabled)) ?? fallback.hapticsEnabled,
+            appDisplayName: (try? container.decode(String.self, forKey: .appDisplayName)) ?? fallback.appDisplayName
         )
     }
 
@@ -115,6 +122,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(enabledSubjects, forKey: .enabledSubjects)
         try container.encode(adsRemoved, forKey: .adsRemoved)
         try container.encode(hapticsEnabled, forKey: .hapticsEnabled)
+        try container.encode(appDisplayName, forKey: .appDisplayName)
     }
 }
 

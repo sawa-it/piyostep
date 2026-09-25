@@ -7,6 +7,8 @@ public struct ChildProfile: Hashable, Codable, Sendable, Identifiable {
     public var age: Int
     /// ホームに出てくる相棒キャラクターの ID。
     public var buddyCharacterID: String
+    /// ホームに出す「じぶんの アイコン」。
+    public var avatar: ProfileAvatar
     public var createdAt: Date
 
     public init(
@@ -14,12 +16,15 @@ public struct ChildProfile: Hashable, Codable, Sendable, Identifiable {
         nickname: String,
         age: Int,
         buddyCharacterID: String = CharacterCatalog.defaultCharacterID,
+        avatar: ProfileAvatar? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
         self.nickname = ChildProfile.sanitize(nickname: nickname)
         self.age = min(max(age, 3), 6)
         self.buddyCharacterID = buddyCharacterID
+        // 指定が無ければ相棒キャラをそのままアイコンにする。
+        self.avatar = avatar ?? .character(buddyCharacterID)
         self.createdAt = createdAt
     }
 
@@ -45,6 +50,40 @@ public struct ChildProfile: Hashable, Codable, Sendable, Identifiable {
         case 5: return .level2
         default: return .level3
         }
+    }
+
+    // MARK: - Codable（項目を足しても古い保存データを読めるようにする）
+
+    private enum CodingKeys: String, CodingKey {
+        case id, nickname, age, buddyCharacterID, avatar, createdAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // 名前と年齢が読めなければプロフィールとして意味がないので、ここだけは必須。
+        let nickname = try container.decode(String.self, forKey: .nickname)
+        let age = try container.decode(Int.self, forKey: .age)
+        let buddy = (try? container.decode(String.self, forKey: .buddyCharacterID))
+            ?? CharacterCatalog.defaultCharacterID
+        self.init(
+            id: (try? container.decode(UUID.self, forKey: .id)) ?? UUID(),
+            nickname: nickname,
+            age: age,
+            buddyCharacterID: buddy,
+            // アイコンを持たない古いデータは、相棒キャラをアイコンとして使う。
+            avatar: try? container.decode(ProfileAvatar.self, forKey: .avatar),
+            createdAt: (try? container.decode(Date.self, forKey: .createdAt)) ?? Date()
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(nickname, forKey: .nickname)
+        try container.encode(age, forKey: .age)
+        try container.encode(buddyCharacterID, forKey: .buddyCharacterID)
+        try container.encode(avatar, forKey: .avatar)
+        try container.encode(createdAt, forKey: .createdAt)
     }
 }
 

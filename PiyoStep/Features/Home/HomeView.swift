@@ -133,9 +133,26 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
-            CharacterArtView(character: environment.buddyCharacter, mood: .happy, size: 92)
+            // 写真を選んでいればその写真、そうでなければ相棒キャラの絵。
+            if environment.avatar.photoFileName != nil {
+                AvatarView(
+                    avatar: environment.avatar,
+                    photoData: environment.avatarImageData(),
+                    size: 92
+                )
+            } else {
+                CharacterArtView(character: environment.buddyCharacter, mood: .happy, size: 92)
+                    .accessibilityIdentifier(A11yID.avatar)
+            }
 
             VStack(alignment: .leading, spacing: 6) {
+                Text(environment.appDisplayName)
+                    .font(PiyoTheme.captionFont)
+                    .foregroundStyle(PiyoTheme.textSoft)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityIdentifier(A11yID.homeAppName)
+
                 Text("\(environment.profile?.callName ?? "きみ")、こんにちは！")
                     .font(PiyoTheme.headlineFont)
                     .foregroundStyle(PiyoTheme.text)

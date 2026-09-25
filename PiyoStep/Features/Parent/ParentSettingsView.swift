@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import PiyoCore
 
 /// 保護者向けの設定。
@@ -10,6 +11,7 @@ struct ParentSettingsView: View {
         Form {
             if let model {
                 ChildSettingsSection(model: model)
+                AppearanceSettingsSection(model: model)
                 LearningSettingsSection(model: model)
                 SoundSettingsSection(model: model)
                 MealSettingsSection(model: model)
@@ -53,6 +55,83 @@ private struct ChildSettingsSection: View {
         } header: {
             Text("おこさま")
         }
+    }
+}
+
+/// アプリの呼び名と、じぶんの アイコン。
+private struct AppearanceSettingsSection: View {
+    @Bindable var model: SettingsViewModel
+    @State private var photoItem: PhotosPickerItem?
+    @State private var isImporting = false
+
+    var body: some View {
+        Section {
+            TextField(AppNaming.defaultName, text: $model.draft.appDisplayName)
+                .accessibilityIdentifier(A11yID.settingsAppName)
+                .onSubmit { model.apply() }
+
+            if let suggestion = model.appNameSuggestion {
+                Button("「\(suggestion)」に する") {
+                    model.useSuggestedAppName()
+                }
+                .accessibilityIdentifier(A11yID.settingsAppNameSuggestion)
+            }
+
+            if !model.isUsingDefaultAppName {
+                Button("もとの なまえに もどす", role: .destructive) {
+                    model.resetAppName()
+                }
+                .accessibilityIdentifier(A11yID.settingsAppNameReset)
+            }
+
+            HStack(spacing: 16) {
+                AvatarView(avatar: model.avatar, photoData: model.avatarPhotoData, size: 64)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+                        Text(model.isUsingPhotoAvatar ? "しゃしんを えらびなおす" : "しゃしんを えらぶ")
+                    }
+                    .accessibilityIdentifier(A11yID.settingsAvatarPick)
+                    .disabled(isImporting)
+
+                    if model.isUsingPhotoAvatar {
+                        Button("あいぼうの えに もどす", role: .destructive) {
+                            model.useCharacterAvatar()
+                        }
+                        .accessibilityIdentifier(A11yID.settingsAvatarClear)
+                    }
+                }
+            }
+
+            if let error = model.avatarError {
+                Text(error)
+                    .font(PiyoTheme.captionFont)
+                    .foregroundStyle(PiyoTheme.primary)
+            }
+        } header: {
+            Text("アプリの みため")
+        } footer: {
+            Text("ここで決めた なまえと アイコンは、アプリの中のホーム画面に出ます。iPhone のホーム画面に並ぶアプリ名とアイコンは、iOS のきまりで変えられません。えらんだ写真はこの端末の中だけに保存され、外には送られません。")
+        }
+        .onChange(of: photoItem) { _, newItem in
+            guard let newItem else { return }
+            isImporting = true
+            Task {
+                let data = await Self.loadAvatarData(from: newItem)
+                model.useAvatarPhoto(data: data)
+                isImporting = false
+                photoItem = nil
+            }
+        }
+    }
+
+    /// 選ばれた写真を読み、アイコン用に整えた JPEG にする。
+    private static func loadAvatarData(from item: PhotosPickerItem) async -> Data? {
+        guard let original = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: original) else {
+            return nil
+        }
+        return AvatarImageProcessor.makeAvatarData(from: image)
     }
 }
 

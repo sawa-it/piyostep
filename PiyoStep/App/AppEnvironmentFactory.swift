@@ -79,6 +79,10 @@ enum AppEnvironmentFactory {
             haptics: launchArguments.isUITest ? NoopHapticsService() : SystemHapticsService(),
             purchaseService: launchArguments.isUITest ? MockPurchaseService() : StoreKitPurchaseService(),
             adPresenter: LaunchAdPresenter(isDisabled: launchArguments.disableAds),
+            // UI テストでは端末にファイルを残さない。
+            profileImageStore: launchArguments.isUITest
+                ? InMemoryProfileImageStore()
+                : FileProfileImageStore(),
             random: launchArguments.randomSeed.map { SeededRandomSource(seed: $0) } ?? SystemRandomSource(),
             clock: SystemClock(),
             launchArguments: launchArguments

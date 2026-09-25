@@ -38,6 +38,7 @@ enum TestEnvironment {
         synthesizer: MockSpeechSynthesizer = MockSpeechSynthesizer(),
         soundPlayer: MockSoundPlayer = MockSoundPlayer(),
         recognizer: SpeechRecognizing? = nil,
+        profileImageStore: ProfileImageStoring = InMemoryProfileImageStore(),
         launchArguments: LaunchArguments? = nil,
         seed: UInt64 = 20_240_401
     ) -> AppEnvironment {
@@ -55,6 +56,7 @@ enum TestEnvironment {
             haptics: haptics ?? NoopHapticsService(),
             purchaseService: purchaseService ?? MockPurchaseService(),
             adPresenter: adPresenter ?? MockAdPresenter(allow: true),
+            profileImageStore: profileImageStore,
             random: SeededRandomSource(seed: seed),
             clock: SystemClock(),
             launchArguments: launchArguments ?? makeLaunchArguments()

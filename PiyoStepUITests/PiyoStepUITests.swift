@@ -246,6 +246,31 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["学習した日"].exists)
     }
 
+    func testRenamingTheAppShowsUpOnHome() {
+        let app = UITest.launch(profileName: "たろう")
+
+        // 変える前は既定の名前
+        let appName = app.staticTexts[A11yID.homeAppName]
+        XCTAssertTrue(appName.waitUntilExists(), "アプリの名前が出ていない")
+        XCTAssertEqual(appName.label, AppNaming.defaultName)
+
+        app.tappable(A11yID.homeParent).waitAndTap()
+        app.solveParentGate()
+        app.tappable("設定").waitAndTap()
+
+        // 子どもの名前から作った候補をそのまま使う
+        let suggestion = app.tappable(A11yID.settingsAppNameSuggestion)
+        XCTAssertTrue(suggestion.waitUntilExists(), "名前の候補が出ない / \(app.screenSummary())")
+        suggestion.waitAndTap()
+
+        app.tappable(A11yID.parentClose).waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+
+        let renamed = app.staticTexts[A11yID.homeAppName]
+        XCTAssertTrue(renamed.waitUntilExists())
+        XCTAssertEqual(renamed.label, "たろうの アプリ", "ホームの名前が変わらない")
+    }
+
     func testChangingASettingIsApplied() {
         let app = UITest.launch()
         app.tappable(A11yID.homeParent).waitAndTap()

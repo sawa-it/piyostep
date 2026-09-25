@@ -19,6 +19,10 @@ public enum A11yID {
     public static let homeParent = "home.parent"
     public static let homeSubject = "home.subject"                  // + subject.rawValue
     public static let homeStarCount = "home.starCount"
+    public static let homeAppName = "home.appName"
+
+    // じぶんの アイコン
+    public static let avatar = "avatar"
 
     // 教科メニュー
     public static let subjectMenu = "subject.menu"
@@ -90,6 +94,11 @@ public enum A11yID {
     public static let settingsMealCharacter = "settings.mealCharacter"  // + characterID
     public static let settingsDailyGoal = "settings.dailyGoal"
     public static let settingsSubject = "settings.subject"          // + subject.rawValue
+    public static let settingsAppName = "settings.appName"
+    public static let settingsAppNameSuggestion = "settings.appName.suggestion"
+    public static let settingsAppNameReset = "settings.appName.reset"
+    public static let settingsAvatarPick = "settings.avatar.pick"
+    public static let settingsAvatarClear = "settings.avatar.clear"
 
     // 広告
     public static let launchAd = "ad.launch"

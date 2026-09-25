@@ -463,8 +463,10 @@ def variable_types(text: str) -> dict[str, str]:
     ):
         record(match.group(2), match.group(1))
     # 関数・イニシャライザの引数 name: Type
+    # 直後に "(" が続くものは `foo(store: InMemoryKeyValueStore())` のような
+    # 呼び出しの引数なので、宣言と取り違えないように除く。
     for match in re.finditer(
-        r"[(,]\s*(?:[a-z_][A-Za-z0-9_]*\s+)?([a-z_][A-Za-z0-9_]*)\s*:\s*([A-Z][A-Za-z0-9_]*)\s*(?![?<\[.])",
+        r"[(,]\s*(?:[a-z_][A-Za-z0-9_]*\s+)?([a-z_][A-Za-z0-9_]*)\s*:\s*([A-Z][A-Za-z0-9_]*)\s*(?![?<\[.(])",
         text,
     ):
         record(match.group(1), match.group(2))
