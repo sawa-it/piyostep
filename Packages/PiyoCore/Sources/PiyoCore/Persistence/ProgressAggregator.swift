@@ -174,7 +174,8 @@ public struct ProgressAggregator {
         snapshots: [Skill: MasterySnapshot]
     ) -> [SubjectStat] {
         let subjectMastery = estimator.subjectMastery(from: snapshots)
-        return Subject.allCases.compactMap { subject in
+        // 複数 return を含むクロージャなので戻り値型を明示しておく。
+        return Subject.allCases.compactMap { subject -> SubjectStat? in
             let relevant = attempts.filter { $0.skill.subject == subject && $0.judgement.countsTowardMastery }
             let lastPracticed = snapshots
                 .filter { $0.key.subject == subject }

@@ -85,8 +85,8 @@ public enum QuestionContent: Equatable, Sendable {
     case placeValue(value: Int, place: NumberPlace)
     /// かな 1 文字（読み / なぞり / 書き）
     case kanaCard(card: KanaCard, task: CharacterTask)
-    /// かな と ことば の対応
-    case kanaWord(card: KanaCard)
+    /// かな と ことば の対応（表示する表記系も持つ）
+    case kanaWord(card: KanaCard, subject: Subject)
     /// アルファベット
     case alphabetCard(card: AlphabetCard, task: CharacterTask, isUppercase: Bool)
     /// 英単語

@@ -106,14 +106,18 @@ cd Packages/PiyoCore && swift test
 ```bash
 pip install tree_sitter tree_sitter_swift   # 構文解析に使うもののみ
 
-python3 Tools/swift_parse_check.py Packages PiyoStep PiyoStepTests PiyoStepUITests
+python3 Tools/swift_parse_check.py      Packages PiyoStep PiyoStepTests PiyoStepUITests
+python3 Tools/type_check.py             Packages PiyoStep PiyoStepTests PiyoStepUITests
 python3 Tools/switch_exhaustive_check.py Packages PiyoStep PiyoStepTests PiyoStepUITests
-python3 Tools/swift_sanity.py Packages PiyoStep PiyoStepTests PiyoStepUITests
+python3 Tools/swift_sanity.py           Packages PiyoStep PiyoStepTests PiyoStepUITests
 python3 Tools/symbol_check.py
 python3 Tools/view_init_check.py
 ```
 
 - `swift_parse_check.py`: tree-sitter の Swift 文法で全ファイルを構文解析
+- `type_check.py`: 宣言と使用箇所を突き合わせて、型エラーになりやすい 6 クラスを検査
+  （enum の associated value / 静的メンバー参照 / protocol 準拠 /
+  イニシャライザ呼び出し（メンバーワイズ含む）/ メソッド呼び出し / プロパティ参照）
 - `switch_exhaustive_check.py`: `default` の無い `switch` が列挙を網羅しているか
 - `swift_sanity.py`: 括弧・文字列・ブロックコメントの対応、`Set<Character>` リテラル、
   トップレベル型名の重複
@@ -122,8 +126,22 @@ python3 Tools/view_init_check.py
 - `view_init_check.py`: SwiftUI View のメンバーワイズ初期化子と呼び出し側の
   ラベル・順序・必須引数の整合
 
-型検査まではできないため Xcode でのビルドの代わりにはなりませんが、
-ツールチェーンが無い環境でも機械的に検出できる誤りを潰せます。
+### 検出力について
+
+`type_check.py` は、故意にコードを壊して検出できるかを確かめてあります
+（ラベル間違い・引数の過不足・順序入れ替え・綴り間違い・requirement 未実装など
+13 パターンすべて検出）。ただし **型推論が要るものは原理的に検出できません**。
+
+| 検出できる | 検出できない |
+| --- | --- |
+| 引数ラベル・順序・過不足（init / メソッド / メンバーワイズ） | 式の型不一致（`Int` と `String` など） |
+| enum の associated value の個数・ラベル | Optional のアンラップ漏れ |
+| 未宣言のメンバー参照（型が型注釈から分かる場合） | ジェネリック制約違反（`Identifiable` 等の欠如） |
+| protocol の requirement 未実装 | SwiftUI / SDK 側 API のシグネチャ違い |
+| `switch` の網羅漏れ | クロージャの戻り値型推論の失敗 |
+
+Xcode でのビルドの代わりにはなりません。実機・シミュレータでの
+`xcodebuild build` と `xcodebuild test` は必ず実行してください。
 
 ---
 
