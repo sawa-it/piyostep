@@ -60,22 +60,46 @@ open PiyoStep.xcodeproj
 
 ### コマンドラインから
 
-```bash
-# アプリ本体のビルド
-xcodebuild build \
-  -project PiyoStep.xcodeproj \
-  -scheme PiyoStep \
-  -destination 'platform=iOS Simulator,name=iPhone 16'
+シミュレータの自動選択まで含めたスクリプトを用意しています。
 
-# Unit Test + UI Test
+```bash
+./Scripts/run_tests.sh          # PiyoCore → ビルド → Unit Test → UI Test
+./Scripts/run_tests.sh core     # PiyoCore のテストだけ（Xcode 不要）
+./Scripts/run_tests.sh build    # アプリ本体のビルドだけ
+./Scripts/run_tests.sh unit     # アプリ層の Unit Test だけ
+./Scripts/run_tests.sh ui       # UI Test だけ
+```
+
+シミュレータを指定したい場合:
+
+```bash
+PIYO_DESTINATION='platform=iOS Simulator,name=iPhone 16' ./Scripts/run_tests.sh
+```
+
+素の xcodebuild を使う場合:
+
+```bash
+xcodebuild build \
+  -project PiyoStep.xcodeproj -scheme PiyoStep \
+  -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO
+
 xcodebuild test \
-  -project PiyoStep.xcodeproj \
-  -scheme PiyoStep \
-  -destination 'platform=iOS Simulator,name=iPhone 16'
+  -project PiyoStep.xcodeproj -scheme PiyoStep \
+  -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO
 
 # ドメインロジックだけなら Xcode 無しでも実行できます
-cd Packages/PiyoCore && swift test
+swift test --package-path Packages/PiyoCore
 ```
+
+### CI
+
+`.github/workflows/ci.yml` で、push のたびに次が走ります。
+
+| ジョブ | ランナー | 内容 |
+| --- | --- | --- |
+| 静的チェック | ubuntu-latest | `Tools/` の 6 種のチェック（ツールチェーン不要） |
+| PiyoCore の Unit Test | macos-15 | `swift test` |
+| アプリのビルドと Unit / UI Test | macos-15 | `Scripts/run_tests.sh` |
 
 ---
 

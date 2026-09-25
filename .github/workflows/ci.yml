@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Swift ツールチェーンが無くても走る静的チェック。
+  static-checks:
+    name: 静的チェック
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 依存関係
+        run: pip install --quiet tree_sitter tree_sitter_swift
+      - name: 構文解析
+        run: python3 Tools/swift_parse_check.py Packages PiyoStep PiyoStepTests PiyoStepUITests
+      - name: 型の突き合わせ
+        run: python3 Tools/type_check.py Packages PiyoStep PiyoStepTests PiyoStepUITests
+      - name: switch の網羅
+        run: python3 Tools/switch_exhaustive_check.py Packages PiyoStep PiyoStepTests PiyoStepUITests
+      - name: 括弧・リテラル
+        run: python3 Tools/swift_sanity.py Packages PiyoStep PiyoStepTests PiyoStepUITests
+      - name: 識別子の参照
+        run: python3 Tools/symbol_check.py
+      - name: View の初期化子
+        run: python3 Tools/view_init_check.py
+
+  # ドメインロジックだけなら Xcode 無しでも実行できる。
+  core-tests:
+    name: PiyoCore の Unit Test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift のバージョン
+        run: swift --version
+      - name: swift test
+        run: swift test --package-path Packages/PiyoCore
+
+  # アプリ本体のビルドと、アプリ層 Unit Test / UI Test。
+  app:
+    name: アプリのビルドと Unit / UI Test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode のバージョン
+        run: xcodebuild -version
+      - name: ビルド
+        run: ./Scripts/run_tests.sh build
+      - name: Unit Test
+        run: ./Scripts/run_tests.sh unit
+      - name: UI Test
+        run: ./Scripts/run_tests.sh ui
