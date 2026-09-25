@@ -73,79 +73,305 @@ struct PlateView: View {
     }
 }
 
-/// ゴールまでのトラック。子どもとキャラクターの位置を並べて見せる。
-struct RaceTrackView: View {
-    var childProgress: Double
-    var characterProgress: Double
+/// キャラクターがどこまで食べ進んだかだけを見せる帯。
+///
+/// 子どもの進み具合は自分のお皿で分かるので、帯はキャラクターの分だけにして
+/// 「追いかける相手」がはっきり見えるようにする。
+struct CharacterProgressBar: View {
+    var progress: Double
     var character: CharacterDefinition
-    var childName: String
+
+    private var clamped: Double { min(max(progress, 0), 1) }
 
     var body: some View {
-        VStack(spacing: 14) {
-            lane(
-                progress: childProgress,
-                color: PiyoTheme.primary,
-                label: childName.isEmpty ? "きみ" : childName,
-                identifier: A11yID.mealChildProgress
-            ) {
-                AnyView(
-                    ZStack {
-                        Circle().fill(PiyoTheme.primary)
-                        Image(systemName: "figure.child")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                    .frame(width: 44, height: 44)
-                )
-            }
-
-            lane(
-                progress: characterProgress,
-                color: PiyoTheme.color(hex: character.accentColorHex),
-                label: character.name,
-                identifier: A11yID.mealCharacterProgress
-            ) {
-                AnyView(
-                    CharacterArtView(character: character, mood: .eating, size: 48, isAnimated: false)
-                )
-            }
-        }
-    }
-
-    private func lane(
-        progress: Double,
-        color: Color,
-        label: String,
-        identifier: String,
-        @ViewBuilder marker: @escaping () -> AnyView
-    ) -> some View {
-        let clamped = min(max(progress, 0), 1)
-        return VStack(alignment: .leading, spacing: 4) {
-            Text(label)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(character.name)
                 .font(PiyoTheme.captionFont)
                 .foregroundStyle(PiyoTheme.textSoft)
             GeometryReader { proxy in
-                let width = proxy.size.width
+                let width = max(0, proxy.size.width)
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(PiyoTheme.surfaceSunken)
                     Capsule()
-                        .fill(color.opacity(0.35))
-                        .frame(width: max(0, width * clamped))
-                    marker()
-                        .offset(x: max(0, min(width - 44, width * clamped - 22)))
+                        .fill(PiyoTheme.color(hex: character.accentColorHex).opacity(0.35))
+                        .frame(width: width * clamped)
+                    CharacterArtView(character: character, mood: .eating, size: 52, isAnimated: false)
+                        .offset(x: max(0, min(width - 52, width * clamped - 26)))
                     Image(systemName: "flag.checkered")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(PiyoTheme.textSoft)
-                        .offset(x: width - 22)
+                        .offset(x: max(0, width - 24))
                 }
                 .animation(.easeInOut(duration: 0.4), value: clamped)
             }
-            .frame(height: 48)
+            .frame(height: 56)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityIdentifier(identifier)
-        .accessibilityLabel("\(label)は \(Int(clamped * 100))パーセント")
+        .accessibilityIdentifier(A11yID.mealCharacterProgress)
+        .accessibilityLabel("\(character.name)は \(Int(clamped * 100))パーセント")
+    }
+}
+
+/// 茶碗とごはん。経過に合わせてごはんの山が小さくなる。
+///
+/// 器の下端が枠の下端にそろうように置き、ごはんは器のふちの上に乗せる。
+struct RiceBowlView: View {
+    var fullness: Double
+    var size: CGFloat = 150
+    var foodName: String = "ごはん"
+
+    private var clamped: Double { min(max(fullness, 0), 1) }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.clear
+                .frame(width: size, height: size * 0.78)
+
+            // ごはんの山。器のふちに乗せ、減るほど低くなる。
+            Ellipse()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 1.0, green: 0.93, blue: 0.74),
+                            Color(red: 0.95, green: 0.80, blue: 0.53)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(Ellipse().stroke(Color(red: 0.82, green: 0.66, blue: 0.42), lineWidth: 2))
+                .frame(width: size * 0.72, height: size * 0.26 * clamped)
+                .offset(y: -size * 0.47)
+                .opacity(clamped > 0.02 ? 1 : 0)
+                .animation(.easeInOut(duration: 0.5), value: clamped)
+
+            BowlShape()
+                .fill(Color.white)
+                .overlay(BowlShape().stroke(PiyoTheme.outline, lineWidth: 3))
+                .frame(width: size, height: size * 0.5)
+
+            if clamped <= 0.02 {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: size * 0.22))
+                    .foregroundStyle(PiyoTheme.success)
+                    .offset(y: -size * 0.58)
+                    .transition(.scale)
+            }
+        }
+        .frame(width: size, height: size * 0.78, alignment: .bottom)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(clamped <= 0.02 ? "\(foodName)を たべおわった" : "\(foodName)が のこっている")
+    }
+}
+
+/// 下にすぼまった茶碗の形。
+struct BowlShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let inset = rect.width * 0.18
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX - inset, y: rect.maxY),
+            control: CGPoint(x: rect.maxX - inset * 0.3, y: rect.maxY * 0.75)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + inset, y: rect.maxY),
+            control: CGPoint(x: rect.midX, y: rect.maxY + rect.height * 0.22)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX, y: rect.minY),
+            control: CGPoint(x: rect.minX + inset * 0.3, y: rect.maxY * 0.75)
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// 食事中のキャラクター。手におはしとスプーンを持ち、目の前の茶碗から食べる。
+///
+/// いまの活動（もぐもぐ・ひとやすみ・おうえん）で動きが変わる。
+struct MealSceneView: View {
+    var character: CharacterDefinition
+    var activity: CharacterActivity
+    var bowlFullness: Double
+    var message: String
+    var size: CGFloat = 220
+
+    @State private var animates = false
+
+    private var mood: CharacterMood {
+        switch activity {
+        case .eating: return .eating
+        case .resting: return .resting
+        case .cheering, .finished: return .cheering
+        }
+    }
+
+    /// 動きの周期。急いでいるときほど速い。
+    private var cycle: Double {
+        switch activity {
+        case .eating: return 0.45
+        case .cheering: return 0.3
+        case .resting: return 1.4
+        case .finished: return 1.0
+        }
+    }
+
+    private var bodyOffset: CGFloat {
+        switch activity {
+        case .eating: return animates ? -6 : 6
+        case .cheering: return animates ? -16 : 0
+        case .resting: return animates ? 3 : -3
+        case .finished: return 0
+        }
+    }
+
+    private var tilt: Double {
+        switch activity {
+        case .eating: return animates ? 4 : -4
+        case .cheering: return animates ? -6 : 6
+        case .resting: return animates ? -3 : 3
+        case .finished: return 0
+        }
+    }
+
+    /// おはしを持つ手が口へ運ばれる量。
+    private var chopstickLift: CGFloat {
+        activity == .eating ? (animates ? -size * 0.16 : 0) : 0
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            speechBubble
+
+            ZStack {
+                // からだ
+                CharacterArtView(character: character, mood: mood, size: size, isAnimated: false)
+                    .rotationEffect(.degrees(tilt))
+                    .offset(y: bodyOffset)
+
+                decoration
+
+                // 両手と食器。からだより手前、茶碗より奥。
+                hand(isLeading: true)
+                hand(isLeading: false)
+
+                // 目の前の茶碗。顔にかからないよう、からだの下半分に置く。
+                RiceBowlView(
+                    fullness: bowlFullness,
+                    size: size * 0.44,
+                    foodName: character.favoriteFood
+                )
+                .offset(y: size * 0.40)
+            }
+            .frame(width: size * 1.5, height: size * 1.1)
+            .background(alignment: .bottom) {
+                // テーブル
+                Capsule()
+                    .fill(PiyoTheme.surfaceSunken)
+                    .frame(width: size * 1.05, height: size * 0.045)
+                    .offset(y: -size * 0.1)
+            }
+
+            Text(activity.childCaption)
+                .font(PiyoTheme.bodyFont)
+                .foregroundStyle(PiyoTheme.primaryDeep)
+        }
+        .onAppear(perform: restartAnimation)
+        .onChange(of: activity) { _, _ in restartAnimation() }
+    }
+
+    /// 手と食器。先行する手（おはし）は食べるたびに口へ上がる。
+    private func hand(isLeading: Bool) -> some View {
+        let direction: CGFloat = isLeading ? -1 : 1
+        return ZStack {
+            // 食器
+            Capsule()
+                .fill(PiyoTheme.outline)
+                .frame(width: size * 0.035, height: size * 0.3)
+                .rotationEffect(.degrees(isLeading ? -28 : 28))
+                .offset(x: direction * size * 0.05, y: -size * 0.12)
+            if !isLeading {
+                // スプーンのすくう部分
+                Ellipse()
+                    .fill(PiyoTheme.outline)
+                    .frame(width: size * 0.09, height: size * 0.07)
+                    .offset(x: size * 0.12, y: -size * 0.24)
+            }
+            // て
+            Circle()
+                .fill(PiyoTheme.color(hex: character.primaryColorHex))
+                .overlay(Circle().stroke(PiyoTheme.outline.opacity(0.5), lineWidth: 2))
+                .frame(width: size * 0.13)
+        }
+        .offset(
+            x: direction * size * 0.36,
+            y: size * 0.18 + (isLeading ? chopstickLift : 0)
+        )
+    }
+
+    private var speechBubble: some View {
+        Text(message)
+            .font(PiyoTheme.bodyFont)
+            .foregroundStyle(PiyoTheme.text)
+            .multilineTextAlignment(.center)
+            .minimumScaleFactor(0.6)
+            .lineLimit(2)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius, style: .continuous)
+                    .fill(PiyoTheme.surface)
+            )
+            .id(message)
+            .transition(.opacity)
+            .animation(.easeInOut(duration: 0.25), value: message)
+    }
+
+    /// 活動ごとの飾り。もぐもぐ中はごはんつぶが舞い、休むと zzz が出る。
+    @ViewBuilder
+    private var decoration: some View {
+        switch activity {
+        case .eating:
+            ForEach(0 ..< 3, id: \.self) { index in
+                Ellipse()
+                    .fill(Color(red: 1.0, green: 0.98, blue: 0.94))
+                    .frame(width: 12, height: 9)
+                    .offset(
+                        x: CGFloat(index - 1) * 26,
+                        y: animates ? -size * 0.38 : -size * 0.14
+                    )
+                    .opacity(animates ? 0 : 0.9)
+            }
+        case .resting:
+            Text("zzz")
+                .font(PiyoTheme.childFont(size: 24, weight: .heavy))
+                .foregroundStyle(PiyoTheme.calm)
+                .offset(x: size * 0.3, y: animates ? -size * 0.44 : -size * 0.32)
+                .opacity(animates ? 0.2 : 0.9)
+        case .cheering:
+            ForEach(0 ..< 3, id: \.self) { index in
+                Image(systemName: "sparkle")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(PiyoTheme.cheer)
+                    .offset(x: CGFloat(index - 1) * 46, y: -size * 0.4)
+                    .scaleEffect(animates ? 1.25 : 0.7)
+            }
+        case .finished:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(PiyoTheme.success)
+                .offset(x: size * 0.3, y: -size * 0.34)
+        }
+    }
+
+    private func restartAnimation() {
+        animates = false
+        withAnimation(.easeInOut(duration: cycle).repeatForever(autoreverses: true)) {
+            animates = true
+        }
     }
 }
 

@@ -3,6 +3,8 @@ import PiyoCore
 
 /// 出題内容を描く。文字が読めなくても分かるよう、イラストと大きな文字が中心。
 struct QuestionContentView: View {
+    @Environment(\.piyoLayout) private var layout
+
     let question: Question
     @Bindable var model: SessionViewModel
 
@@ -16,7 +18,7 @@ struct QuestionContentView: View {
     private var content: some View {
         switch question.content {
         case .clockRead(let time):
-            AnalogClockView(time: time, isInteractive: false, size: 250)
+            AnalogClockView(time: time, isInteractive: false, size: layout.scaled(250, minimum: 160))
 
         case .clockSet(let target, _, let step):
             VStack(spacing: 14) {
@@ -32,7 +34,7 @@ struct QuestionContentView: View {
                     time: model.draggedTime,
                     isInteractive: true,
                     minuteStep: step,
-                    size: 260,
+                    size: layout.scaled(260, minimum: 170),
                     onChange: { model.draggedTime = $0 }
                 )
             }
@@ -42,7 +44,7 @@ struct QuestionContentView: View {
                 CountableObjectsView(
                     kind: kind,
                     count: count,
-                    itemSize: count > 12 ? 40 : 54,
+                    itemSize: layout.scaled(count > 12 ? 40 : 54, minimum: 26),
                     tappedIndices: model.countedIndices,
                     onTap: { model.toggleCounted(index: $0) }
                 )
@@ -73,7 +75,7 @@ struct QuestionContentView: View {
             kanaContent(card: card, task: task)
 
         case .kanaWord(let card, let subject):
-            KanaWordIllustration(card: card, subject: subject, size: 140, showsWord: true)
+            KanaWordIllustration(card: card, subject: subject, size: layout.scaled(140, minimum: 90), showsWord: true)
 
         case .alphabetCard(let card, let task, let isUppercase):
             alphabetContent(card: card, task: task, isUppercase: isUppercase)
@@ -108,7 +110,7 @@ struct QuestionContentView: View {
                         Image(systemName: "speaker.wave.3.fill")
                             .font(.system(size: 54, weight: .bold))
                             .foregroundStyle(PiyoTheme.color(for: subject))
-                            .frame(width: 140, height: 140)
+                            .frame(width: layout.scaled(140, minimum: 96), height: layout.scaled(140, minimum: 96))
                             .background(Circle().fill(PiyoTheme.color(for: subject).opacity(0.15)))
                     }
                     .buttonStyle(.plain)
@@ -147,7 +149,7 @@ struct QuestionContentView: View {
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.system(size: 54, weight: .bold))
                         .foregroundStyle(PiyoTheme.color(for: .alphabet))
-                        .frame(width: 140, height: 140)
+                        .frame(width: layout.scaled(140, minimum: 96), height: layout.scaled(140, minimum: 96))
                         .background(Circle().fill(PiyoTheme.color(for: .alphabet).opacity(0.15)))
                 }
                 .buttonStyle(.plain)
@@ -169,7 +171,7 @@ struct QuestionContentView: View {
         switch task {
         case .speakWord:
             VStack(spacing: 10) {
-                EnglishWordIllustration(card: card, size: 150, showsText: false)
+                EnglishWordIllustration(card: card, size: layout.scaled(150, minimum: 96), showsText: false)
                 Text(card.japanese)
                     .font(PiyoTheme.bodyFont)
                     .foregroundStyle(PiyoTheme.textSoft)

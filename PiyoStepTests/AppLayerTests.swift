@@ -177,27 +177,25 @@ final class AppEnvironmentTests: XCTestCase {
 @MainActor
 final class AdPresenterTests: XCTestCase {
 
-    func testLaunchAdShowsOnlyOncePerLaunch() {
-        let presenter = LaunchAdPresenter()
-        XCTAssertTrue(presenter.shouldPresentLaunchAd(adsRemoved: false))
-        presenter.markLaunchAdPresented()
-        XCTAssertFalse(presenter.shouldPresentLaunchAd(adsRemoved: false))
+    func testAdIsShownInTheParentArea() {
+        let presenter = ParentAreaAdPresenter()
+        XCTAssertTrue(presenter.shouldPresentAd(adsRemoved: false))
     }
 
-    func testLaunchAdIsSkippedWhenPurchased() {
-        let presenter = LaunchAdPresenter()
-        XCTAssertFalse(presenter.shouldPresentLaunchAd(adsRemoved: true))
+    func testAdIsSkippedWhenPurchased() {
+        let presenter = ParentAreaAdPresenter()
+        XCTAssertFalse(presenter.shouldPresentAd(adsRemoved: true))
     }
 
-    func testLaunchAdIsSkippedDuringLearning() {
-        let presenter = LaunchAdPresenter()
+    func testAdIsSkippedDuringLearning() {
+        let presenter = ParentAreaAdPresenter()
         presenter.isLearningSessionActive = true
-        XCTAssertFalse(presenter.shouldPresentLaunchAd(adsRemoved: false))
+        XCTAssertFalse(presenter.shouldPresentAd(adsRemoved: false))
     }
 
     func testDisabledPresenterNeverShows() {
-        let presenter = LaunchAdPresenter(isDisabled: true)
-        XCTAssertFalse(presenter.shouldPresentLaunchAd(adsRemoved: false))
+        let presenter = ParentAreaAdPresenter(isDisabled: true)
+        XCTAssertFalse(presenter.shouldPresentAd(adsRemoved: false))
     }
 }
 

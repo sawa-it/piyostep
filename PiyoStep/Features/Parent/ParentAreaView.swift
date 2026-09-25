@@ -9,27 +9,34 @@ struct ParentAreaView: View {
 
     var body: some View {
         NavigationStack {
-            TabView {
-                ProgressDashboardView()
-                    .tabItem {
-                        Label("習熟度", systemImage: "chart.bar.fill")
-                    }
-                    .accessibilityIdentifier(A11yID.parentDashboard)
+            VStack(spacing: 0) {
+                // 広告はここ（ペアレンタルゲートの先）にだけ出す。
+                if environment.adPresenter.shouldPresentAd(adsRemoved: environment.settings.adsRemoved) {
+                    ParentAdBannerView()
+                }
 
-                ParentSettingsView()
-                    .tabItem {
-                        Label("設定", systemImage: "gearshape.fill")
-                    }
-                    .accessibilityIdentifier(A11yID.parentSettings)
+                TabView {
+                    ProgressDashboardView()
+                        .tabItem {
+                            Label("習熟度", systemImage: "chart.bar.fill")
+                        }
+                        .accessibilityIdentifier(A11yID.parentDashboard)
 
-                PurchaseView()
-                    .tabItem {
-                        Label("広告解除", systemImage: "cart.fill")
-                    }
-                    .accessibilityIdentifier(A11yID.parentPurchase)
+                    ParentSettingsView()
+                        .tabItem {
+                            Label("設定", systemImage: "gearshape.fill")
+                        }
+                        .accessibilityIdentifier(A11yID.parentSettings)
+
+                    PurchaseView()
+                        .tabItem {
+                            Label("広告解除", systemImage: "cart.fill")
+                        }
+                        .accessibilityIdentifier(A11yID.parentPurchase)
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier(A11yID.parentTabs)
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier(A11yID.parentTabs)
             .navigationTitle("おうちのかた")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -39,6 +46,35 @@ struct ParentAreaView: View {
                 }
             }
         }
+    }
+}
+
+/// 保護者エリアにだけ出す広告枠。
+/// 子どもが触る画面には出さないので、誤タップの心配がない。
+struct ParentAdBannerView: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "megaphone.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(Color.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("ひろこく")
+                    .font(.caption2)
+                    .foregroundStyle(Color.secondary)
+                Text("この枠に広告が表示されます。おこさまの画面には出ません。")
+                    .font(.footnote)
+                    .foregroundStyle(Color.secondary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 72)
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemGroupedBackground))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(A11yID.parentAd)
     }
 }
 
@@ -53,6 +89,7 @@ struct ProgressDashboardView: View {
                 if let model {
                     summaryCards(model)
                     weeklyChart(model)
+                    ItemMasterySection(model: model)
                     subjectSection(model)
                     strengthsSection(model)
                     recentSection(model)

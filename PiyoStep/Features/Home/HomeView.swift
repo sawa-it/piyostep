@@ -46,29 +46,34 @@ struct HomeView: View {
     @State private var sheetRoute: SheetRoute?
     @State private var unlockQueue: [UnlockableItem] = []
 
-    private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
+    /// 幅に応じて列数が変わる。横向きの iPad では 3 列以上になる。
+    private let columns = [GridItem(.adaptive(minimum: 150), spacing: 16)]
 
     var body: some View {
-        ZStack {
-            PiyoBackground(tint: PiyoTheme.primary)
+        PiyoLayoutReader { _ in
+            ZStack {
+                PiyoBackground(tint: PiyoTheme.primary)
 
-            ScrollView {
-                VStack(spacing: 22) {
-                    header
-                    dailyChallengeCard
-                    subjectsGrid
-                    bottomButtons
+                // 横向きでは「あいさつ＋きょうのチャレンジ」と「教科のボタン」を左右に分ける。
+                AdaptivePanes(spacing: 22) {
+                    VStack(spacing: 22) {
+                        header
+                        dailyChallengeCard
+                    }
+                } trailing: {
+                    VStack(spacing: 22) {
+                        subjectsGrid
+                        bottomButtons
+                    }
                 }
                 .padding(20)
-                .frame(maxWidth: 640)
-                .frame(maxWidth: .infinity)
-            }
 
-            if let item = unlockQueue.first {
-                Color.black.opacity(0.35).ignoresSafeArea()
-                UnlockBanner(item: item) {
-                    unlockQueue.removeFirst()
-                    environment.haptics.tap()
+                if let item = unlockQueue.first {
+                    Color.black.opacity(0.35).ignoresSafeArea()
+                    UnlockBanner(item: item) {
+                        unlockQueue.removeFirst()
+                        environment.haptics.tap()
+                    }
                 }
             }
         }
@@ -119,6 +124,7 @@ struct HomeView: View {
         case .parentGate:
             ParentGateView(
                 onPass: {
+                    environment.markParentGatePassed()
                     sheetRoute = nil
                     presentAfterDismiss { sheetRoute = .parentArea }
                 },
@@ -227,7 +233,8 @@ struct HomeView: View {
 
     private var subjectsGrid: some View {
         LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(Array(environment.settings.enabledSubjects).sorted(by: { $0.rawValue < $1.rawValue })) { subject in
+            // 学習の優先度順（ひらがな・すうじ → とけい・カタカナ → 英語）に並べる。
+            ForEach(Subject.orderedByPriority.filter(environment.settings.enabledSubjects.contains)) { subject in
                 IconTitleButton(
                     systemImage: icon(for: subject),
                     title: subject.childTitle,

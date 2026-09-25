@@ -12,31 +12,30 @@ struct CollectionView: View {
         UnlockCatalog.items(in: selectedCategory)
     }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14)
-    ]
+    /// 幅に応じて列数が変わる。横向きでは 1 行に多く並ぶ。
+    private let columns = [GridItem(.adaptive(minimum: 130), spacing: 14)]
 
     var body: some View {
-        ZStack {
-            PiyoBackground(tint: PiyoTheme.calm)
+        PiyoLayoutReader { metrics in
+            ZStack {
+                PiyoBackground(tint: PiyoTheme.calm)
 
-            VStack(spacing: 16) {
-                header
-                categoryPicker
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(items) { item in
-                            itemCell(item)
+                VStack(spacing: 16) {
+                    header
+                    categoryPicker
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 14) {
+                            ForEach(items) { item in
+                                itemCell(item)
+                            }
                         }
+                        .padding(.bottom, 24)
                     }
-                    .padding(.bottom, 24)
+                    goalFooter
                 }
-                goalFooter
+                .padding(20)
+                .frame(maxWidth: metrics.columnMaxWidth)
             }
-            .padding(20)
-            .frame(maxWidth: 640)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.collection)

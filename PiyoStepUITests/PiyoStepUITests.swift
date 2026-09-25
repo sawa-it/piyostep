@@ -65,6 +65,14 @@ final class PiyoStepUITests: XCTestCase {
             "チャレンジが結果画面まで到達しない / \(app.screenSummary())"
         )
         XCTAssertTrue(app.element(id: A11yID.resultStars).exists)
+
+        // 結果 → おうちのかたに わたす → おうちのかたの実績、の順に進む。
+        app.tappable(A11yID.resultShowParent).waitAndTap()
+        app.tappable(A11yID.resultHandoffReceived).waitAndTap()
+        // 起動して最初の受け渡しなので、ここでペアレンタルゲートが出る。
+        app.solveParentGate()
+        XCTAssertTrue(app.element(id: A11yID.resultParent).waitUntilExists(), "おうちのかたの画面が出ない")
+
         app.tappable(A11yID.resultDone).waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
     }
@@ -194,13 +202,6 @@ final class PiyoStepUITests: XCTestCase {
         let race = app.element(id: A11yID.mealRace)
         XCTAssertTrue(race.waitForExistence(timeout: UITest.defaultTimeout), "競争画面が出ない")
 
-        // 「もぐもぐ」を何回か押してから完食する
-        let bite = app.tappable(A11yID.mealBite)
-        if bite.waitForExistence(timeout: 4) {
-            bite.tap()
-            bite.tap()
-        }
-
         app.tappable(A11yID.mealFinish).waitAndTap()
 
         XCTAssertTrue(app.element(id: A11yID.mealResult).waitUntilExists(), "結果が出ない")
@@ -278,9 +279,10 @@ final class PiyoStepUITests: XCTestCase {
 
         app.tappable("設定").waitAndTap()
 
+        // Form は UICollectionView なので、画面外の行はまだ作られていない。
+        // 存在を確かめる前にスクロールして、行が組み上がるのを待つ。
         let voiceAnswerToggle = app.switches[A11yID.settingsVoiceAnswer]
-        XCTAssertTrue(voiceAnswerToggle.waitUntilExists(), "設定にトグルが出ない / \(app.screenSummary())")
-        XCTAssertTrue(voiceAnswerToggle.scrollIntoView(), "トグルが画面外のまま / \(app.screenSummary())")
+        XCTAssertTrue(voiceAnswerToggle.scrollIntoView(), "トグルが見つからない / \(app.screenSummary())")
         let before = voiceAnswerToggle.value as? String
 
         // Form の Toggle は行全体がひとつの要素になるので、中央ではなくスイッチ側（右端）を押す。
@@ -302,11 +304,14 @@ final class PiyoStepUITests: XCTestCase {
         XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
     }
 
-    func testAdsAreNotShownDuringLearning() {
-        // UI テストでは広告を無効にしている。学習中に広告枠が出ないことを確認する。
+    func testAdsAreNotShownOnChildScreens() {
+        // 広告は保護者エリアの中だけ。ホームにも学習中にも出さない。
         let app = UITest.launch()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+        XCTAssertFalse(app.element(id: A11yID.parentAd).exists, "ホームに広告が出ている")
+
         app.tappable(A11yID.homeDailyChallenge).waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
-        XCTAssertFalse(app.element(id: A11yID.launchAd).exists)
+        XCTAssertFalse(app.element(id: A11yID.parentAd).exists, "学習中に広告が出ている")
     }
 }

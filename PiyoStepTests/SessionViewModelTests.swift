@@ -251,7 +251,7 @@ final class SessionViewModelTests: XCTestCase {
         let model = makeModel(environment: environment, questions: [TestEnvironment.integerQuestion()])
 
         XCTAssertTrue(adPresenter.isLearningSessionActive)
-        XCTAssertFalse(adPresenter.shouldPresentLaunchAd(adsRemoved: false), "学習中は広告を出さない")
+        XCTAssertFalse(adPresenter.shouldPresentAd(adsRemoved: false), "学習中は広告を出さない")
 
         model.submitNumberInputDirectly(3)
         model.advance()

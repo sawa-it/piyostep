@@ -63,7 +63,7 @@ struct ChoiceGridView: View {
 struct NumberPadView: View {
     @Bindable var model: SessionViewModel
 
-    private let digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    private let digitRows = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
     var body: some View {
         VStack(spacing: 14) {
@@ -76,16 +76,21 @@ struct NumberPadView: View {
                         .fill(PiyoTheme.surface)
                 )
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-                spacing: 12
-            ) {
-                ForEach(digits, id: \.self) { digit in
-                    digitButton(digit)
+            // 12 個しかないので遅延生成しない。LazyVGrid だと画面外のボタンが
+            // つくられず、VoiceOver や UI テストから決定ボタンにたどり着けない。
+            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+                ForEach(digitRows, id: \.self) { row in
+                    GridRow {
+                        ForEach(row, id: \.self) { digit in
+                            digitButton(digit)
+                        }
+                    }
                 }
-                clearButton
-                digitButton(0)
-                submitButton
+                GridRow {
+                    clearButton
+                    digitButton(0)
+                    submitButton
+                }
             }
         }
     }
@@ -143,7 +148,7 @@ struct NumberPadView: View {
 struct TimePadView: View {
     @Bindable var model: SessionViewModel
 
-    private let digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    private let digitRows = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
     var body: some View {
         VStack(spacing: 14) {
@@ -152,16 +157,21 @@ struct TimePadView: View {
                 slot(text: model.minuteInput, unit: "ふん", field: .minute)
             }
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
-                spacing: 12
-            ) {
-                ForEach(digits, id: \.self) { digit in
-                    digitButton(digit)
+            // 12 個しかないので遅延生成しない。LazyVGrid だと画面外のボタンが
+            // つくられず、VoiceOver や UI テストから決定ボタンにたどり着けない。
+            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+                ForEach(digitRows, id: \.self) { row in
+                    GridRow {
+                        ForEach(row, id: \.self) { digit in
+                            digitButton(digit)
+                        }
+                    }
                 }
-                clearButton
-                digitButton(0)
-                submitButton
+                GridRow {
+                    clearButton
+                    digitButton(0)
+                    submitButton
+                }
             }
         }
     }
@@ -265,6 +275,7 @@ struct ClockDragPanel: View {
 
 /// なぞり書き・自由書き。
 struct TracePanel: View {
+    @Environment(\.piyoLayout) private var layout
     @Bindable var model: SessionViewModel
 
     private var templateText: String {
@@ -287,7 +298,7 @@ struct TracePanel: View {
             TraceCanvasView(
                 character: templateText,
                 showsTemplate: showsTemplate,
-                canvasSize: 280,
+                canvasSize: layout.scaled(280, minimum: 180),
                 strokes: $model.traceStrokes
             )
 
@@ -325,11 +336,15 @@ struct TracePanel: View {
 /// 音声で答える。マイク・波形・キャラクターの反応をまとめる。
 struct VoiceAnswerPanel: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.piyoLayout) private var layout
     @Bindable var model: SessionViewModel
 
     private var isListening: Bool {
         model.voiceState.isListening
     }
+
+    /// 横向きで高さが足りないときはマイクを小さくする。
+    private var micDiameter: CGFloat { layout.scaled(132, minimum: 92) }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -337,7 +352,7 @@ struct VoiceAnswerPanel: View {
                 CharacterArtView(
                     character: environment.buddyCharacter,
                     mood: isListening ? .listening : .idle,
-                    size: 84
+                    size: layout.scaled(84, minimum: 60)
                 )
                 VStack(alignment: .leading, spacing: 6) {
                     Text(model.voiceGuidanceText)
@@ -387,19 +402,22 @@ struct VoiceAnswerPanel: View {
             ZStack {
                 Circle()
                     .fill(isListening ? PiyoTheme.primaryDeep : PiyoTheme.primary)
-                    .frame(width: 132, height: 132)
+                    .frame(width: micDiameter, height: micDiameter)
                     .shadow(color: PiyoTheme.primary.opacity(0.45), radius: isListening ? 24 : 12, y: 6)
                 if isListening {
                     Circle()
                         .stroke(PiyoTheme.primary.opacity(0.45), lineWidth: 8)
-                        .frame(width: 132 + CGFloat(model.voiceLevel) * 60, height: 132 + CGFloat(model.voiceLevel) * 60)
+                        .frame(
+                            width: micDiameter + CGFloat(model.voiceLevel) * 60,
+                            height: micDiameter + CGFloat(model.voiceLevel) * 60
+                        )
                         .animation(.easeOut(duration: 0.18), value: model.voiceLevel)
                 }
                 Image(systemName: isListening ? "waveform" : "mic.fill")
-                    .font(.system(size: 54, weight: .bold))
+                    .font(.system(size: micDiameter * 0.41, weight: .bold))
                     .foregroundStyle(.white)
             }
-            .frame(height: 176)
+            .frame(height: micDiameter + 44)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(A11yID.sessionVoiceButton)

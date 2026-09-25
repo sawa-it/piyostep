@@ -38,8 +38,9 @@ final class AppEnvironment {
     var unlockedItemIDs: Set<String> = UnlockCatalog.initiallyUnlockedIDs
     /// 直近に解放されたもの（演出したら空にする）
     var pendingUnlocks: [UnlockableItem] = []
-    /// 起動時広告を表示中か
-    var isShowingLaunchAd = false
+    /// この起動で、すでに大人がペアレンタルゲートを通ったか。
+    /// 遊ぶたびに計算を解かせると手間なので、起動につき 1 回だけ確認する。
+    private(set) var hasPassedParentGateThisLaunch = false
 
     let launchArguments: LaunchArguments
 
@@ -112,6 +113,11 @@ final class AppEnvironment {
             updated.adsRemoved = true
             update(settings: updated)
         }
+    }
+
+    /// ペアレンタルゲートを通ったことを覚えておく。
+    func markParentGatePassed() {
+        hasPassedParentGateThisLaunch = true
     }
 
     // MARK: - プロフィール・設定

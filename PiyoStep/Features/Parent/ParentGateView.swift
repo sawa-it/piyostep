@@ -11,79 +11,99 @@ struct ParentGateView: View {
     @State private var model = ParentGateViewModel()
     @State private var showsError = false
 
-    private let digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    private let digitRows = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
     var body: some View {
-        ZStack {
-            PiyoTheme.surfaceSunken.ignoresSafeArea()
+        PiyoLayoutReader { _ in
+            ZStack {
+                PiyoTheme.surfaceSunken.ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                HStack {
-                    Button("とじる", action: onCancel)
-                        .font(PiyoTheme.bodyFont)
-                        .foregroundStyle(PiyoTheme.textSoft)
-                        .accessibilityIdentifier(A11yID.parentGateCancel)
-                    Spacer()
-                }
-
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(PiyoTheme.textSoft)
-
-                Text(ParentGate.instructionText)
-                    .font(PiyoTheme.captionFont)
-                    .foregroundStyle(PiyoTheme.textSoft)
-                    .multilineTextAlignment(.center)
-
-                Text(model.questionText)
-                    .font(PiyoTheme.childFont(size: 40, weight: .heavy))
-                    .foregroundStyle(PiyoTheme.text)
-                    .accessibilityIdentifier(A11yID.parentGateQuestion)
-
-                Text(model.input.isEmpty ? "—" : model.input)
-                    .font(PiyoTheme.childFont(size: 40, weight: .heavy))
-                    .foregroundStyle(showsError ? .red : PiyoTheme.primaryDeep)
-                    .frame(maxWidth: .infinity, minHeight: 72)
-                    .background(
-                        RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius)
-                            .fill(PiyoTheme.surface)
-                    )
-
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                    spacing: 10
-                ) {
-                    ForEach(digits, id: \.self) { digit in
-                        padButton("\(digit)") { model.append(digit: digit) }
-                            .accessibilityIdentifier("\(A11yID.parentGateDigit)\(digit)")
+                VStack(spacing: 12) {
+                    HStack {
+                        Button("とじる", action: onCancel)
+                            .font(PiyoTheme.bodyFont)
+                            .foregroundStyle(PiyoTheme.textSoft)
+                            .accessibilityIdentifier(A11yID.parentGateCancel)
+                        Spacer()
                     }
-                    padButton("C") { model.clear() }
-                    padButton("0") { model.append(digit: 0) }
-                        .accessibilityIdentifier("\(A11yID.parentGateDigit)0")
-                    Button(action: submit) {
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 22, weight: .heavy))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, minHeight: 60)
-                            .background(RoundedRectangle(cornerRadius: 14).fill(PiyoTheme.primary))
+
+                    // 横向きでは問題とキーパッドを左右に分ける。
+                    // 縦に積んだままだと、横向きでキーパッドが画面の外に出てしまう。
+                    AdaptivePanes(spacing: 20) {
+                        question
+                    } trailing: {
+                        keypad
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier(A11yID.parentGateSubmit)
                 }
-
-                if showsError {
-                    Text("もういちど おねがいします")
-                        .font(PiyoTheme.captionFont)
-                        .foregroundStyle(.red)
-                }
-
-                Spacer(minLength: 0)
+                .padding(20)
             }
-            .padding(24)
-            .frame(maxWidth: 420)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.parentGate)
+    }
+
+    private var question: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(PiyoTheme.textSoft)
+
+            Text(ParentGate.instructionText)
+                .font(PiyoTheme.captionFont)
+                .foregroundStyle(PiyoTheme.textSoft)
+                .multilineTextAlignment(.center)
+
+            Text(model.questionText)
+                .font(PiyoTheme.childFont(size: 40, weight: .heavy))
+                .foregroundStyle(PiyoTheme.text)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .accessibilityIdentifier(A11yID.parentGateQuestion)
+
+            Text(model.input.isEmpty ? "—" : model.input)
+                .font(PiyoTheme.childFont(size: 36, weight: .heavy))
+                .foregroundStyle(showsError ? .red : PiyoTheme.primaryDeep)
+                .frame(maxWidth: .infinity, minHeight: 64)
+                .background(
+                    RoundedRectangle(cornerRadius: PiyoTheme.smallCornerRadius)
+                        .fill(PiyoTheme.surface)
+                )
+
+            if showsError {
+                Text("もういちど おねがいします")
+                    .font(PiyoTheme.captionFont)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    /// 12 個しかないので遅延生成しない。画面外のボタンも要素として存在させておく。
+    private var keypad: some View {
+        Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+            ForEach(digitRows, id: \.self) { row in
+                GridRow {
+                    ForEach(row, id: \.self) { digit in
+                        padButton("\(digit)") { model.append(digit: digit) }
+                            .accessibilityIdentifier("\(A11yID.parentGateDigit)\(digit)")
+                    }
+                }
+            }
+            GridRow {
+                padButton("C") { model.clear() }
+                padButton("0") { model.append(digit: 0) }
+                    .accessibilityIdentifier("\(A11yID.parentGateDigit)0")
+                Button(action: submit) {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 22, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(PiyoTheme.primary))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(A11yID.parentGateSubmit)
+            }
+        }
+        .frame(maxWidth: 420)
     }
 
     private func padButton(_ title: String, action: @escaping () -> Void) -> some View {
@@ -91,7 +111,7 @@ struct ParentGateView: View {
             Text(title)
                 .font(PiyoTheme.childFont(size: 26, weight: .heavy))
                 .foregroundStyle(PiyoTheme.text)
-                .frame(maxWidth: .infinity, minHeight: 60)
+                .frame(maxWidth: .infinity, minHeight: 56)
                 .background(RoundedRectangle(cornerRadius: 14).fill(PiyoTheme.surface))
         }
         .buttonStyle(.plain)

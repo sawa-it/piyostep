@@ -12,15 +12,15 @@ struct SessionView: View {
     @State private var isShowingQuitConfirmation = false
 
     var body: some View {
-        ZStack {
-            PiyoBackground(tint: PiyoTheme.color(for: request.subject ?? .number))
+        PiyoLayoutReader { _ in
+            ZStack {
+                PiyoBackground(tint: PiyoTheme.color(for: request.subject ?? .number))
 
-            if let model {
-                sessionBody(model)
+                if let model {
+                    sessionBody(model)
+                }
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(A11yID.session)
         .onAppear {
             guard model == nil else { return }
             let created = SessionViewModel(
@@ -50,16 +50,14 @@ struct SessionView: View {
         } else {
             VStack(spacing: 14) {
                 header(model)
-                ScrollView {
-                    VStack(spacing: 20) {
-                        questionArea(model)
-                        answerArea(model)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 28)
-                    .frame(maxWidth: 640)
-                    .frame(maxWidth: .infinity)
+                // 横向きでは出題と回答を左右に分ける。縦向きのときは今までどおり上下に積む。
+                // どちらの形でもスクロールできるので、回答ボタンが画面の外に残らない。
+                AdaptivePanes(spacing: 20) {
+                    questionArea(model)
+                } trailing: {
+                    answerArea(model)
                 }
+                .padding(.horizontal, 20)
             }
             .overlay(alignment: .bottom) {
                 if model.stage == .feedback, let feedback = model.feedback {
@@ -76,6 +74,11 @@ struct SessionView: View {
                 ConfettiView(isActive: model.showsConfetti)
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.stage)
+            // 識別子は「出題中の画面」に付ける。いちばん外側の ZStack に付けると、
+            // 結果画面に切り替わったあとも同じ ScrollView に session.root が残り、
+            // SessionResultView の result.root を上書きして消してしまう。
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(A11yID.session)
         }
     }
 
@@ -255,6 +258,24 @@ struct FeedbackPanel: View {
                         .minimumScaleFactor(0.6)
                         .lineLimit(3)
                         .accessibilityIdentifier(A11yID.sessionFeedback)
+
+                    // 挑戦回数を使い切ったら、答えが分からないままにしない。
+                    if feedback.revealsAnswer, !feedback.correctAnswerDisplay.isEmpty {
+                        HStack(spacing: 8) {
+                            Text("こたえは")
+                                .font(PiyoTheme.bodyFont)
+                                .foregroundStyle(PiyoTheme.textSoft)
+                            Text(feedback.correctAnswerDisplay)
+                                .font(PiyoTheme.headlineFont)
+                                .foregroundStyle(PiyoTheme.primaryDeep)
+                                .minimumScaleFactor(0.5)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(PiyoTheme.cheer.opacity(0.24)))
+                        .accessibilityIdentifier(A11yID.sessionAnswerReveal)
+                    }
                     if feedback.starsEarned > 0 {
                         StarRewardView(stars: feedback.starsEarned, maximum: 2, size: 26)
                     }
