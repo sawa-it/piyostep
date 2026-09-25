@@ -13,8 +13,9 @@ public enum JapaneseTextNormalizer {
     static let trailingExpressions = [
         "だとおもう", "とおもう", "じゃないかな", "じゃない", "だとおもいます",
         "でーす", "です", "ですか", "でした", "ます", "だよ", "だね", "だと",
-        "かな", "かも", "だよー", "よー", "よ", "ね", "な"
+        "かな", "かも", "だよー", "よー", "よ", "ね"
     ]
+    // 「な」単体は語尾として落とさない。数詞「なな」を壊してしまうため。
 
     /// 記号・空白を取り除く。
     public static func stripSymbols(_ text: String) -> String {

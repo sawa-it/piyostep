@@ -120,13 +120,15 @@ struct AnalogClockView: View {
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
+                // CGFloat と Double が混ざると演算子の解決が曖昧になるので、
+                // 角度の計算はすべて Double に寄せる。
                 let center = CGPoint(x: size / 2, y: size / 2)
-                let dx = value.location.x - center.x
-                let dy = value.location.y - center.y
+                let dx = Double(value.location.x - center.x)
+                let dy = Double(value.location.y - center.y)
                 let radius = (dx * dx + dy * dy).squareRoot()
-                guard radius > size * 0.05 else { return }
+                guard radius > Double(size) * 0.05 else { return }
 
-                let angle = ClockTime.normalizeDegrees(atan2(dx, -dy) * 180 / .pi)
+                let angle = ClockTime.normalizeDegrees(atan2(dx, -dy) * 180.0 / .pi)
 
                 if draggingHand == nil {
                     draggingHand = closestHand(to: angle, radius: radius)
@@ -152,13 +154,13 @@ struct AnalogClockView: View {
     }
 
     /// 触った場所に近いほうの針を掴む。
-    private func closestHand(to angle: Double, radius: CGFloat) -> Hand {
+    private func closestHand(to angle: Double, radius: Double) -> Hand {
         let current = displayedTime
         let hourDelta = angularDistance(angle, current.hourHandAngleDegrees)
         let minuteDelta = angularDistance(angle, current.minuteHandAngleDegrees)
 
         // 外周に近いところを触ったら、長い針（分）を優先する。
-        if radius > size * 0.30 {
+        if radius > Double(size) * 0.30 {
             return minuteDelta < 50 ? .minute : (hourDelta < minuteDelta ? .hour : .minute)
         }
         return hourDelta <= minuteDelta ? .hour : .minute
