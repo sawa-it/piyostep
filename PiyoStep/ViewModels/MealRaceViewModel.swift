@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import UIKit
 import PiyoCore
 
 /// ご飯タイマー（キャラクターとの競争）の画面ロジック。
@@ -147,9 +146,6 @@ final class MealRaceViewModel {
 
     private func startRace() {
         stage = .racing
-        // 食べている間は誰も画面に触らないので、放っておくと暗くなって消えてしまう。
-        // タイマーが見えなくなると用をなさないため、競争中だけスリープを止める。
-        UIApplication.shared.isIdleTimerDisabled = true
         startedAt = environment.clock.now
         elapsed = 0
         hasAnnouncedCharacterFinish = false
@@ -339,7 +335,6 @@ final class MealRaceViewModel {
         guard stage != .finished, stage != .ready else { return }
         timer?.invalidate()
         timer = nil
-        UIApplication.shared.isIdleTimerDisabled = false
         stopListeningForFinish()
 
         let outcome = engine.finish(at: elapsed, childName: childName)
@@ -364,7 +359,6 @@ final class MealRaceViewModel {
     func cancel() {
         timer?.invalidate()
         timer = nil
-        UIApplication.shared.isIdleTimerDisabled = false
         stopListeningForFinish()
         environment.adPresenter.isLearningSessionActive = false
         environment.stopSpeaking()
