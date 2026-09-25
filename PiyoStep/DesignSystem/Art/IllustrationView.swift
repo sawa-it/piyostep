@@ -174,7 +174,7 @@ struct KanaWordIllustration: View {
             )
             if showsWord {
                 Text(card.word(for: subject))
-                    .font(PiyoTheme.bodyFont)
+                    .piyoFont(.body)
                     .foregroundStyle(PiyoTheme.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -199,10 +199,10 @@ struct EnglishWordIllustration: View {
             )
             if showsText {
                 Text(card.english)
-                    .font(PiyoTheme.bodyFont)
+                    .piyoFont(.body)
                     .foregroundStyle(PiyoTheme.text)
                 Text(card.japanese)
-                    .font(PiyoTheme.captionFont)
+                    .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.textSoft)
             }
         }

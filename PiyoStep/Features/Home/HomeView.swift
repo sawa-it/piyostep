@@ -41,27 +41,27 @@ enum SheetRoute: Identifiable {
 
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.piyoLayout) private var layout
 
     @State private var fullScreenRoute: FullScreenRoute?
     @State private var sheetRoute: SheetRoute?
     @State private var unlockQueue: [UnlockableItem] = []
 
-    private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: CGFloat(layout.sized(16))),
+            count: layout.subjectColumns
+        )
+    }
 
     var body: some View {
         ZStack {
             PiyoBackground(tint: PiyoTheme.primary)
 
             ScrollView {
-                VStack(spacing: 22) {
-                    header
-                    dailyChallengeCard
-                    subjectsGrid
-                    bottomButtons
-                }
-                .padding(20)
-                .frame(maxWidth: 640)
-                .frame(maxWidth: .infinity)
+                layoutBody
+                    .padding(CGFloat(layout.spacing))
+                    .piyoContentWidth(layout)
             }
 
             if let item = unlockQueue.first {
@@ -75,12 +75,17 @@ struct HomeView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.home)
         .fullScreenCover(item: $fullScreenRoute) { route in
-            fullScreenDestination(route)
-                .environment(environment)
+            // 出した先は大きさが違う（シートは一回り小さい）ので、そこで測り直す。
+            PiyoLayoutReader {
+                fullScreenDestination(route)
+                    .environment(environment)
+            }
         }
         .sheet(item: $sheetRoute) { route in
-            sheetDestination(route)
-                .environment(environment)
+            PiyoLayoutReader {
+                sheetDestination(route)
+                    .environment(environment)
+            }
         }
         .onAppear {
             environment.refreshProgress()
@@ -129,6 +134,34 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - 並べ方
+
+    /// 横向きは左右に分ける。縦に積むと、高さ 390pt の iPhone 横持ちで
+    /// 「きょうの チャレンジ」より下が画面の外に出てしまう。
+    @ViewBuilder
+    private var layoutBody: some View {
+        if layout.shape.isLandscape {
+            HStack(alignment: .top, spacing: CGFloat(layout.spacing)) {
+                VStack(spacing: CGFloat(layout.spacing)) {
+                    header
+                    dailyChallengeCard
+                    bottomButtons
+                }
+                .frame(maxWidth: .infinity)
+
+                subjectsGrid
+                    .frame(maxWidth: .infinity)
+            }
+        } else {
+            VStack(spacing: CGFloat(layout.spacing)) {
+                header
+                dailyChallengeCard
+                subjectsGrid
+                bottomButtons
+            }
+        }
+    }
+
     // MARK: - パーツ
 
     private var header: some View {
@@ -138,23 +171,27 @@ struct HomeView: View {
                 AvatarView(
                     avatar: environment.avatar,
                     photoData: environment.avatarImageData(),
-                    size: 92
+                    size: CGFloat(layout.sized(84))
                 )
             } else {
-                CharacterArtView(character: environment.buddyCharacter, mood: .happy, size: 92)
+                CharacterArtView(
+                    character: environment.buddyCharacter,
+                    mood: .happy,
+                    size: CGFloat(layout.sized(84))
+                )
                     .accessibilityIdentifier(A11yID.avatar)
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(environment.appDisplayName)
-                    .font(PiyoTheme.captionFont)
+                    .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.textSoft)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .accessibilityIdentifier(A11yID.homeAppName)
 
                 Text("\(environment.profile?.callName ?? "きみ")、こんにちは！")
-                    .font(PiyoTheme.headlineFont)
+                    .piyoFont(.headline)
                     .foregroundStyle(PiyoTheme.text)
                     .minimumScaleFactor(0.6)
                     .lineLimit(2)
@@ -164,12 +201,12 @@ struct HomeView: View {
                     Image(systemName: "star.fill")
                         .foregroundStyle(PiyoTheme.cheer)
                     Text("\(environment.progress.totalStars)")
-                        .font(PiyoTheme.bodyFont)
+                        .piyoFont(.body)
                         .foregroundStyle(PiyoTheme.text)
                         .accessibilityIdentifier(A11yID.homeStarCount)
                     if let goal = environment.nextUnlockGoal {
                         Text("・つぎは \(goal.name)")
-                            .font(PiyoTheme.captionFont)
+                            .piyoFont(.caption)
                             .foregroundStyle(PiyoTheme.textSoft)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
@@ -187,7 +224,7 @@ struct HomeView: View {
                     Image(systemName: "person.2.fill")
                         .font(.system(size: 20, weight: .bold))
                     Text("おうちのひと")
-                        .font(PiyoTheme.childFont(size: 11, weight: .semibold))
+                        .piyoFont(size: 11, weight: .semibold)
                 }
                 .foregroundStyle(PiyoTheme.textSoft)
                 .frame(width: 84, height: 60)
@@ -201,17 +238,17 @@ struct HomeView: View {
     }
 
     private var dailyChallengeCard: some View {
-        BigButton(color: PiyoTheme.primary, minHeight: 150, action: startDailyChallenge) {
+        BigButton(color: PiyoTheme.primary, minHeight: CGFloat(layout.sized(140)), action: startDailyChallenge) {
             HStack(spacing: 18) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 46, weight: .bold))
                 VStack(alignment: .leading, spacing: 6) {
                     Text("きょうの チャレンジ")
-                        .font(PiyoTheme.titleFont)
+                        .piyoFont(.title)
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
                     Text("\(environment.settings.dailyGoal.questionCount)もん・\(estimatedMinutes)ふんくらい")
-                        .font(PiyoTheme.bodyFont)
+                        .piyoFont(.body)
                         .opacity(0.92)
                 }
                 Spacer()
@@ -226,13 +263,13 @@ struct HomeView: View {
     }
 
     private var subjectsGrid: some View {
-        LazyVGrid(columns: columns, spacing: 16) {
+        LazyVGrid(columns: columns, spacing: CGFloat(layout.sized(16))) {
             ForEach(Array(environment.settings.enabledSubjects).sorted(by: { $0.rawValue < $1.rawValue })) { subject in
                 IconTitleButton(
                     systemImage: icon(for: subject),
                     title: subject.childTitle,
                     color: PiyoTheme.color(for: subject),
-                    minHeight: 130
+                    minHeight: CGFloat(layout.sized(126))
                 ) {
                     environment.haptics.tap()
                     environment.speak(subject.childTitle)
@@ -244,12 +281,12 @@ struct HomeView: View {
     }
 
     private var bottomButtons: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: CGFloat(layout.sized(16))) {
             IconTitleButton(
                 systemImage: "fork.knife",
                 title: "ごはんタイマー",
                 color: PiyoTheme.success,
-                minHeight: 120
+                minHeight: CGFloat(layout.sized(116))
             ) {
                 environment.haptics.tap()
                 fullScreenRoute = .meal
@@ -260,7 +297,7 @@ struct HomeView: View {
                 systemImage: "books.vertical.fill",
                 title: "ずかん",
                 color: PiyoTheme.calm,
-                minHeight: 120
+                minHeight: CGFloat(layout.sized(116))
             ) {
                 environment.haptics.tap()
                 sheetRoute = .collection

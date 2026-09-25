@@ -4,6 +4,7 @@ import PiyoCore
 /// はじめての起動。子ども本人でも進められるよう、3 ステップだけにする。
 struct OnboardingView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.piyoLayout) private var layout
 
     @State private var step = 0
     @State private var nickname = ""
@@ -11,6 +12,14 @@ struct OnboardingView: View {
     @State private var characterID = CharacterCatalog.defaultCharacterID
 
     private let ageOptions = [3, 4, 5, 6]
+
+    /// 横向きは横に並べられるので列を増やす。
+    private var onboardingColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: CGFloat(layout.sized(16))),
+            count: layout.shape.isLandscape ? 4 : 2
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -29,7 +38,7 @@ struct OnboardingView: View {
                 }
             }
             .padding(24)
-            .frame(maxWidth: 560)
+            .piyoContentWidth(layout)
         }
         .onAppear {
             environment.speak("なまえを おしえてね")
@@ -41,11 +50,11 @@ struct OnboardingView: View {
     private var nameStep: some View {
         VStack(spacing: 24) {
             Text("なまえは なにかな？")
-                .font(PiyoTheme.titleFont)
+                .piyoFont(.title)
                 .foregroundStyle(PiyoTheme.text)
 
             TextField("なまえ", text: $nickname)
-                .font(PiyoTheme.headlineFont)
+                .piyoFont(.headline)
                 .multilineTextAlignment(.center)
                 .textFieldStyle(.plain)
                 .padding(.vertical, 18)
@@ -58,12 +67,12 @@ struct OnboardingView: View {
 
             BigButton(color: PiyoTheme.primary, action: goToAgeStep) {
                 Text("つぎへ")
-                    .font(PiyoTheme.headlineFont)
+                    .piyoFont(.headline)
             }
             .accessibilityIdentifier(A11yID.onboardingNext)
 
             Text("あとから かえられます")
-                .font(PiyoTheme.captionFont)
+                .piyoFont(.caption)
                 .foregroundStyle(PiyoTheme.textSoft)
         }
     }
@@ -71,10 +80,10 @@ struct OnboardingView: View {
     private var ageStep: some View {
         VStack(spacing: 24) {
             Text("なんさい？")
-                .font(PiyoTheme.titleFont)
+                .piyoFont(.title)
                 .foregroundStyle(PiyoTheme.text)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+            LazyVGrid(columns: onboardingColumns, spacing: CGFloat(layout.sized(16))) {
                 ForEach(ageOptions, id: \.self) { option in
                     ChoiceCardButton(
                         isHighlighted: age == option,
@@ -86,10 +95,10 @@ struct OnboardingView: View {
                     } content: {
                         VStack(spacing: 4) {
                             Text("\(option)")
-                                .font(PiyoTheme.childFont(size: 56, weight: .heavy))
+                                .piyoFont(size: 56, weight: .heavy)
                                 .foregroundStyle(PiyoTheme.primaryDeep)
                             Text("さい")
-                                .font(PiyoTheme.bodyFont)
+                                .piyoFont(.body)
                                 .foregroundStyle(PiyoTheme.textSoft)
                         }
                     }
@@ -99,7 +108,7 @@ struct OnboardingView: View {
 
             BigButton(color: PiyoTheme.primary, action: goToCharacterStep) {
                 Text("つぎへ")
-                    .font(PiyoTheme.headlineFont)
+                    .piyoFont(.headline)
             }
             .accessibilityIdentifier(A11yID.onboardingNext)
         }
@@ -108,7 +117,7 @@ struct OnboardingView: View {
     private var characterStep: some View {
         VStack(spacing: 24) {
             Text("あいぼうを えらぼう")
-                .font(PiyoTheme.titleFont)
+                .piyoFont(.title)
                 .foregroundStyle(PiyoTheme.text)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -120,9 +129,9 @@ struct OnboardingView: View {
                             environment.haptics.tap()
                         } label: {
                             VStack(spacing: 8) {
-                                CharacterArtView(character: character, mood: .idle, size: 92, isAnimated: false)
+                                CharacterArtView(character: character, mood: .idle, size: CGFloat(layout.artSized(92)), isAnimated: false)
                                 Text(character.name)
-                                    .font(PiyoTheme.captionFont)
+                                    .piyoFont(.caption)
                                     .foregroundStyle(PiyoTheme.text)
                             }
                             .padding(12)
@@ -149,7 +158,7 @@ struct OnboardingView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "play.fill")
                     Text("はじめる！")
-                        .font(PiyoTheme.headlineFont)
+                        .piyoFont(.headline)
                 }
             }
             .accessibilityIdentifier(A11yID.onboardingStart)

@@ -61,19 +61,15 @@ enum PiyoTheme {
         .system(size: size, weight: weight, design: .rounded)
     }
 
-    static let titleFont = childFont(size: 34)
-    static let headlineFont = childFont(size: 26)
-    static let bodyFont = childFont(size: 20, weight: .semibold)
-    static let captionFont = childFont(size: 16, weight: .medium)
-    static let giantFont = childFont(size: 110, weight: .heavy)
+    // 役割ごとの大きさは画面の形で変わるので `.piyoFont(.title)` を使う。
+    // ここに固定値の Font を置くと、iPad や横向きで大きさが追従しなくなる。
 
     // MARK: - 形
 
     static let cornerRadius: CGFloat = 28
     static let smallCornerRadius: CGFloat = 18
-    /// 幼児がタップしやすい最小サイズ
-    static let minimumTapSize: CGFloat = 88
-    static let spacing: CGFloat = 20
+    // タップ領域と余白は画面の広さで変わるので `LayoutMetrics` が持つ。
+    // 固定値をここに置くと、iPad で小さいままになる。
 }
 
 /// 画面全体の背景。

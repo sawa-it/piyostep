@@ -5,11 +5,16 @@ import PiyoCore
 struct SessionView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.piyoLayout) private var layout
 
     let request: SessionRequest
 
     @State private var model: SessionViewModel?
     @State private var isShowingQuitConfirmation = false
+
+    private var isShowingResult: Bool {
+        model?.stage == .finished && model?.summary != nil
+    }
 
     var body: some View {
         ZStack {
@@ -20,7 +25,9 @@ struct SessionView: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(A11yID.session)
+        // 入れ子のコンテナは潰れてしまうので、結果画面に変わったら名前も入れ替える。
+        // こうしないと「いまどの画面か」が VoiceOver からも UI テストからも分からない。
+        .accessibilityIdentifier(isShowingResult ? A11yID.result : A11yID.session)
         .onAppear {
             guard model == nil else { return }
             let created = SessionViewModel(
@@ -50,15 +57,26 @@ struct SessionView: View {
         } else {
             VStack(spacing: 14) {
                 header(model)
-                ScrollView {
-                    VStack(spacing: 20) {
-                        questionArea(model)
-                        answerArea(model)
+                if layout.usesSideBySideAnswer {
+                    // 横向きは出題を左、回答を右に置く。縦に積むと、
+                    // 高さ 390pt の iPhone 横持ちで回答ボタンが画面の外に出る。
+                    HStack(alignment: .top, spacing: CGFloat(layout.spacing)) {
+                        ScrollView { questionArea(model).padding(.vertical, 4) }
+                        ScrollView { answerArea(model).padding(.vertical, 4) }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 28)
-                    .frame(maxWidth: 640)
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, CGFloat(layout.spacing))
+                    .padding(.bottom, 16)
+                    .piyoContentWidth(layout)
+                } else {
+                    ScrollView {
+                        VStack(spacing: CGFloat(layout.spacing)) {
+                            questionArea(model)
+                            answerArea(model)
+                        }
+                        .padding(.horizontal, CGFloat(layout.spacing))
+                        .padding(.bottom, 28)
+                        .piyoContentWidth(layout)
+                    }
                 }
             }
             .overlay(alignment: .bottom) {
@@ -99,7 +117,7 @@ struct SessionView: View {
                 Spacer()
 
                 Text("\(min(model.progressCount + 1, model.totalCount)) / \(model.totalCount)")
-                    .font(PiyoTheme.bodyFont)
+                    .piyoFont(.body)
                     .foregroundStyle(PiyoTheme.textSoft)
 
                 Spacer()
@@ -127,7 +145,7 @@ struct SessionView: View {
     private func questionArea(_ model: SessionViewModel) -> some View {
         VStack(spacing: 16) {
             Text(model.currentQuestion?.prompt.displayText ?? "")
-                .font(PiyoTheme.titleFont)
+                .piyoFont(.title)
                 .foregroundStyle(PiyoTheme.text)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.6)
@@ -143,7 +161,7 @@ struct SessionView: View {
                     Image(systemName: "lightbulb.fill")
                         .foregroundStyle(PiyoTheme.cheer)
                     Text(hint)
-                        .font(PiyoTheme.bodyFont)
+                        .piyoFont(.body)
                         .foregroundStyle(PiyoTheme.textSoft)
                 }
                 .padding(.horizontal, 16)
@@ -199,7 +217,7 @@ struct AnswerModePicker: View {
                         Image(systemName: icon(for: mode))
                             .font(.system(size: 22, weight: .bold))
                         Text(mode.childTitle)
-                            .font(PiyoTheme.childFont(size: 13, weight: .semibold))
+                            .piyoFont(size: 13, weight: .semibold)
                     }
                     .frame(maxWidth: .infinity, minHeight: 64)
                     .foregroundStyle(model.answerMode == mode ? .white : PiyoTheme.textSoft)
@@ -250,7 +268,7 @@ struct FeedbackPanel: View {
                 )
                 VStack(alignment: .leading, spacing: 6) {
                     Text(feedback.message)
-                        .font(PiyoTheme.headlineFont)
+                        .piyoFont(.headline)
                         .foregroundStyle(PiyoTheme.text)
                         .minimumScaleFactor(0.6)
                         .lineLimit(3)
@@ -265,14 +283,14 @@ struct FeedbackPanel: View {
             if feedback.canRetry {
                 BigButton(color: tint, action: onRetry) {
                     Text("もういっかい！")
-                        .font(PiyoTheme.headlineFont)
+                        .piyoFont(.headline)
                 }
                 .accessibilityIdentifier(A11yID.sessionRetry)
             } else {
                 BigButton(color: tint, action: onNext) {
                     HStack(spacing: 10) {
                         Text("つぎへ")
-                            .font(PiyoTheme.headlineFont)
+                            .piyoFont(.headline)
                         Image(systemName: "arrow.right")
                     }
                 }
@@ -287,6 +305,6 @@ struct FeedbackPanel: View {
         )
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
-        .frame(maxWidth: 640)
+        .frame(maxWidth: 720)
     }
 }

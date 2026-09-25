@@ -5,6 +5,7 @@ import PiyoCore
 struct SubjectMenuView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.piyoLayout) private var layout
 
     let subject: Subject
     var onSelect: (Skill) -> Void
@@ -24,18 +25,25 @@ struct SubjectMenuView: View {
                     BackCircleButton { dismiss() }
                     Spacer()
                     Text(subject.childTitle)
-                        .font(PiyoTheme.titleFont)
+                        .piyoFont(.title)
                         .foregroundStyle(PiyoTheme.text)
                     Spacer()
                     Color.clear.frame(width: 64, height: 64)
                 }
 
                 ScrollView {
-                    VStack(spacing: 16) {
+                    // 横向きは縦に積むと 2 つしか見えないので、2 列にする。
+                    LazyVGrid(
+                        columns: Array(
+                            repeating: GridItem(.flexible(), spacing: CGFloat(layout.sized(16))),
+                            count: layout.shape.isLandscape ? 2 : 1
+                        ),
+                        spacing: CGFloat(layout.sized(16))
+                    ) {
                         ForEach(skills) { skill in
                             BigButton(
                                 color: PiyoTheme.color(for: subject),
-                                minHeight: 108,
+                                minHeight: CGFloat(layout.sized(104)),
                                 action: { select(skill) }
                             ) {
                                 HStack(spacing: 16) {
@@ -43,11 +51,11 @@ struct SubjectMenuView: View {
                                         .font(.system(size: 34, weight: .bold))
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(skill.childTitle)
-                                            .font(PiyoTheme.headlineFont)
+                                            .piyoFont(.headline)
                                             .minimumScaleFactor(0.6)
                                             .lineLimit(1)
                                         Text(environment.currentLevel(for: skill).childLabel)
-                                            .font(PiyoTheme.captionFont)
+                                            .piyoFont(.caption)
                                             .opacity(0.9)
                                     }
                                     Spacer()
@@ -62,7 +70,7 @@ struct SubjectMenuView: View {
                         if skills.isEmpty {
                             PiyoCard {
                                 Text("この きょうかは もうすこし おおきくなってから あそべるよ")
-                                    .font(PiyoTheme.bodyFont)
+                                    .piyoFont(.body)
                                     .foregroundStyle(PiyoTheme.textSoft)
                                     .multilineTextAlignment(.center)
                             }
@@ -71,8 +79,8 @@ struct SubjectMenuView: View {
                     .padding(.bottom, 20)
                 }
             }
-            .padding(20)
-            .frame(maxWidth: 640)
+            .padding(CGFloat(layout.spacing))
+            .piyoContentWidth(layout)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.subjectMenu)

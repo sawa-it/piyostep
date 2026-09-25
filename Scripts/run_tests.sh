@@ -34,15 +34,17 @@ run_core_tests() {
     swift test --package-path Packages/PiyoCore
 }
 
-# 利用できる iPhone シミュレータのうち、いちばん新しい iOS ランタイムのものを選ぶ。
+# 利用できるシミュレータのうち、いちばん新しい iOS ランタイムのものを選ぶ。
+# PIYO_DEVICE=iPad で iPad を選べる（既定は iPhone）。
 resolve_destination() {
     if [[ -n "${PIYO_DESTINATION:-}" ]]; then
         printf '%s' "$PIYO_DESTINATION"
         return
     fi
-    xcrun simctl list devices available --json | python3 -c '
-import json, sys
+    xcrun simctl list devices available --json | PIYO_DEVICE="${PIYO_DEVICE:-iPhone}" python3 -c '
+import json, os, sys
 
+wanted = os.environ["PIYO_DEVICE"]
 data = json.load(sys.stdin)["devices"]
 best = None
 for runtime, devices in data.items():
@@ -51,14 +53,14 @@ for runtime, devices in data.items():
     for device in devices:
         if not device.get("isAvailable"):
             continue
-        if not device["name"].startswith("iPhone"):
+        if not device["name"].startswith(wanted):
             continue
         key = (runtime, device["name"])
         if best is None or key > best[0]:
             best = (key, device["udid"])
 
 if best is None:
-    sys.exit("利用できる iPhone シミュレータが見つかりません。Xcode の Settings → Platforms から iOS シミュレータを入れてください。")
+    sys.exit(f"利用できる {wanted} シミュレータが見つかりません。Xcode の Settings → Platforms から iOS シミュレータを入れてください。")
 print(f"platform=iOS Simulator,id={best[1]}")
 '
 }

@@ -73,6 +73,23 @@ extension XCUIElement {
     func waitUntilExists(timeout: TimeInterval = UITest.defaultTimeout) -> Bool {
         waitForExistence(timeout: timeout)
     }
+
+    /// SwiftUI の Form / List は行を遅延生成するので、画面の外にある行は
+    /// 「ヒットできない」ではなく「存在しない」。出てくるまでスクロールする。
+    @discardableResult
+    func scrollUntilExists(maxAttempts: Int = 8) -> Bool {
+        if waitForExistence(timeout: 2) { return true }
+        let app = XCUIApplication()
+        for _ in 0 ..< maxAttempts {
+            app.scrollContent(up: true)
+            if exists { return true }
+        }
+        for _ in 0 ..< maxAttempts {
+            app.scrollContent(up: false)
+            if exists { return true }
+        }
+        return exists
+    }
 }
 
 extension XCUIApplication {
@@ -110,17 +127,33 @@ extension XCUIApplication {
     /// 失敗メッセージに添える画面の要約。
     /// CI ではログ本体を読めず annotation（＝アサーションの文言）しか見えないので、
     /// 何が出ていたのかを 1 行に畳んで残す。括弧付きはタップできない要素。
-    func screenSummary(limit: Int = 24) -> String {
-        var seen: [String] = []
+    ///
+    /// - Parameter prefix: 見たい画面の接頭辞（"session." など）。
+    ///   指定しないとアプリが付けた識別子だけに絞る。SF Symbol の名前は
+    ///   自動で識別子になってしまい、枠を食い潰すので落とす。
+    func screenSummary(prefix: String? = nil, limit: Int = 26) -> String {
+        var hittable: [String] = []
+        var hidden: [String] = []
+
         for element in descendants(matching: .any).allElementsBoundByIndex {
             let identifier = element.identifier
             guard !identifier.isEmpty else { continue }
-            let entry = element.isHittable ? identifier : "(\(identifier))"
-            guard !seen.contains(entry) else { continue }
-            seen.append(entry)
-            if seen.count >= limit { break }
+            if let prefix {
+                guard identifier.hasPrefix(prefix) else { continue }
+            } else {
+                guard UITest.isAppIdentifier(identifier) else { continue }
+            }
+            if element.isHittable {
+                if !hittable.contains(identifier) { hittable.append(identifier) }
+            } else {
+                if !hidden.contains("(\(identifier))") { hidden.append("(\(identifier))") }
+            }
+            if hittable.count + hidden.count >= limit * 2 { break }
         }
-        return seen.isEmpty ? "識別子なし" : seen.joined(separator: " ")
+
+        // 手前にあるもの（押せるもの）から並べる。後ろの画面で埋まらないように。
+        let entries = Array((hittable + hidden).prefix(limit))
+        return entries.isEmpty ? "識別子なし" : entries.joined(separator: " ")
     }
 
     /// 回答方法を切り替える。切り替えられたら true。
@@ -231,6 +264,17 @@ extension XCUIApplication {
 }
 
 extension UITest {
+    /// アプリが自分で付けた識別子か。
+    /// `Image(systemName:)` は SF Symbol 名がそのまま識別子になるので、それを除く。
+    static let identifierPrefixes = [
+        "home.", "session.", "result.", "meal.", "collection.",
+        "parent.", "settings.", "onboarding.", "subject.", "ad.", "avatar"
+    ]
+
+    static func isAppIdentifier(_ identifier: String) -> Bool {
+        identifierPrefixes.contains { identifier.hasPrefix($0) }
+    }
+
     /// 「23 + 15 は？」のような文字列を解く。
     static func solve(question: String) -> Int? {
         let cleaned = question.replacingOccurrences(of: "は？", with: "")

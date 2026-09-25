@@ -6,6 +6,13 @@ struct RootView: View {
     @State private var hasCheckedLaunchAd = false
 
     var body: some View {
+        // 画面の実寸から寸法を決めて下へ配る。回転・分割表示にそのまま追従する。
+        PiyoLayoutReader {
+            content
+        }
+    }
+
+    private var content: some View {
         ZStack {
             if environment.profile == nil {
                 OnboardingView()
@@ -57,7 +64,7 @@ struct LaunchAdView: View {
                             Image(systemName: "xmark")
                             Text(remainingSeconds > 0 ? "\(remainingSeconds)" : "とじる")
                         }
-                        .font(PiyoTheme.bodyFont)
+                        .piyoFont(.body)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 22)
                         .frame(height: 56)
@@ -77,10 +84,10 @@ struct LaunchAdView: View {
                         .font(.system(size: 60))
                         .foregroundStyle(.white.opacity(0.9))
                     Text("ひろこく")
-                        .font(PiyoTheme.headlineFont)
+                        .piyoFont(.headline)
                         .foregroundStyle(.white)
                     Text("この枠に広告が表示されます。\n学習中とごはんタイマー中には表示されません。")
-                        .font(PiyoTheme.captionFont)
+                        .piyoFont(.caption)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.white.opacity(0.75))
                 }

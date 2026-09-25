@@ -122,7 +122,7 @@ struct RaceTrackView: View {
         let clamped = min(max(progress, 0), 1)
         return VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(PiyoTheme.captionFont)
+                .piyoFont(.caption)
                 .foregroundStyle(PiyoTheme.textSoft)
             GeometryReader { proxy in
                 let width = proxy.size.width
@@ -208,7 +208,7 @@ struct PlaceValueBlocksView: View {
             HStack(alignment: .bottom, spacing: 4) {
                 if count == 0 {
                     Text("0")
-                        .font(PiyoTheme.bodyFont)
+                        .piyoFont(.body)
                         .foregroundStyle(PiyoTheme.textSoft)
                 } else {
                     ForEach(0 ..< count, id: \.self) { _ in
@@ -218,7 +218,7 @@ struct PlaceValueBlocksView: View {
             }
             .frame(minHeight: blockSize * 3, alignment: .bottom)
             Text(title)
-                .font(PiyoTheme.childFont(size: 13, weight: .semibold))
+                .piyoFont(size: 13, weight: .semibold)
                 .foregroundStyle(highlighted == place ? PiyoTheme.primaryDeep : PiyoTheme.textSoft)
         }
         .padding(8)

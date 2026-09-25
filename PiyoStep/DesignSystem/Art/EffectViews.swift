@@ -152,14 +152,14 @@ struct UnlockBanner: View {
                 .font(.system(size: 54))
                 .foregroundStyle(PiyoTheme.cheer)
             Text("あたらしい \(item.category.childTitle)！")
-                .font(PiyoTheme.headlineFont)
+                .piyoFont(.headline)
                 .foregroundStyle(PiyoTheme.text)
             Text(item.name)
-                .font(PiyoTheme.titleFont)
+                .piyoFont(.title)
                 .foregroundStyle(PiyoTheme.primaryDeep)
             BigButton(color: PiyoTheme.success, action: onDismiss) {
                 Text("やったー！")
-                    .font(PiyoTheme.headlineFont)
+                    .piyoFont(.headline)
             }
         }
         .padding(28)

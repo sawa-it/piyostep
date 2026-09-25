@@ -2,13 +2,20 @@ import SwiftUI
 
 /// 幼児でも押しやすい大きなボタン。
 struct BigButton<Label: View>: View {
+    @Environment(\.piyoLayout) private var layout
+
     var color: Color = PiyoTheme.primary
-    var minHeight: CGFloat = PiyoTheme.minimumTapSize
+    /// 指定が無ければ、画面の広さに合わせた最小サイズ。
+    var minHeight: CGFloat?
     var isEnabled: Bool = true
     var action: () -> Void
     @ViewBuilder var label: Label
 
     @State private var isPressed = false
+
+    private var resolvedMinHeight: CGFloat {
+        minHeight ?? CGFloat(layout.minimumTapSize)
+    }
 
     var body: some View {
         Button(action: {
@@ -16,7 +23,7 @@ struct BigButton<Label: View>: View {
             action()
         }) {
             label
-                .frame(maxWidth: .infinity, minHeight: minHeight)
+                .frame(maxWidth: .infinity, minHeight: resolvedMinHeight)
                 .padding(.horizontal, 16)
                 .background(
                     RoundedRectangle(cornerRadius: PiyoTheme.cornerRadius, style: .continuous)
@@ -44,19 +51,21 @@ struct BigButton<Label: View>: View {
 
 /// アイコンと文字を縦に並べた定番のかたち。
 struct IconTitleButton: View {
+    @Environment(\.piyoLayout) private var layout
+
     var systemImage: String
     var title: String
     var color: Color = PiyoTheme.primary
-    var minHeight: CGFloat = 120
+    var minHeight: CGFloat?
     var action: () -> Void
 
     var body: some View {
-        BigButton(color: color, minHeight: minHeight, action: action) {
+        BigButton(color: color, minHeight: minHeight ?? CGFloat(layout.sized(116)), action: action) {
             VStack(spacing: 8) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 40, weight: .bold))
+                    .font(.system(size: CGFloat(layout.fontSize(38)), weight: .bold))
                 Text(title)
-                    .font(PiyoTheme.headlineFont)
+                    .piyoFont(.headline)
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
             }

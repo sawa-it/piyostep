@@ -105,7 +105,7 @@ private struct AppearanceSettingsSection: View {
 
             if let error = model.avatarError {
                 Text(error)
-                    .font(PiyoTheme.captionFont)
+                    .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.primary)
             }
         } header: {

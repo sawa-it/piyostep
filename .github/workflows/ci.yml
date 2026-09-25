@@ -47,16 +47,24 @@ jobs:
         run: ./Scripts/ci_step.sh "swift test" swift test --package-path Packages/PiyoCore
 
   # アプリ本体のビルドと、アプリ層 Unit Test / UI Test。
+  # iPhone と iPad の両方で動かす。どちらも横向きで使う前提なので、
+  # 画面の広さが違う 2 つで組み替えが壊れていないことを見る。
   app:
-    name: アプリのビルドと Unit / UI Test
+    name: アプリのビルドと Unit / UI Test (${{ matrix.device }})
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    env:
+      PIYO_DEVICE: ${{ matrix.device }}
     steps:
       - uses: actions/checkout@v5
       - name: Xcode のバージョン
         run: xcodebuild -version
       - name: ビルド
-        run: ./Scripts/ci_step.sh "build" ./Scripts/run_tests.sh build
+        run: ./Scripts/ci_step.sh "build ${{ matrix.device }}" ./Scripts/run_tests.sh build
       - name: Unit Test
-        run: ./Scripts/ci_step.sh "unit" ./Scripts/run_tests.sh unit
+        run: ./Scripts/ci_step.sh "unit ${{ matrix.device }}" ./Scripts/run_tests.sh unit
       - name: UI Test
-        run: ./Scripts/ci_step.sh "ui" ./Scripts/run_tests.sh ui
+        run: ./Scripts/ci_step.sh "ui ${{ matrix.device }}" ./Scripts/run_tests.sh ui

@@ -5,34 +5,38 @@ import PiyoCore
 struct QuestionContentView: View {
     let question: Question
     @Bindable var model: SessionViewModel
+    @Environment(\.piyoLayout) private var layout
 
     var body: some View {
-        PiyoCard(padding: 22) {
+        PiyoCard(padding: CGFloat(layout.sized(22))) {
             content
         }
     }
+
+    /// 大きな絵の寸法。横向きでは高さに収まるよう縮む。
+    private func art(_ base: Double) -> CGFloat { CGFloat(layout.artSized(base)) }
 
     @ViewBuilder
     private var content: some View {
         switch question.content {
         case .clockRead(let time):
-            AnalogClockView(time: time, isInteractive: false, size: 250)
+            AnalogClockView(time: time, isInteractive: false, size: art(250))
 
         case .clockSet(let target, _, let step):
             VStack(spacing: 14) {
                 Text(target.displayJapanese)
-                    .font(PiyoTheme.giantFont)
+                    .piyoFont(.giant)
                     .minimumScaleFactor(0.4)
                     .lineLimit(1)
                     .foregroundStyle(PiyoTheme.primaryDeep)
                 Text("はりを うごかしてね")
-                    .font(PiyoTheme.captionFont)
+                    .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.textSoft)
                 AnalogClockView(
                     time: model.draggedTime,
                     isInteractive: true,
                     minuteStep: step,
-                    size: 260,
+                    size: art(260),
                     onChange: { model.draggedTime = $0 }
                 )
             }
@@ -42,18 +46,18 @@ struct QuestionContentView: View {
                 CountableObjectsView(
                     kind: kind,
                     count: count,
-                    itemSize: count > 12 ? 40 : 54,
+                    itemSize: art(count > 12 ? 40 : 54),
                     tappedIndices: model.countedIndices,
                     onTap: { model.toggleCounted(index: $0) }
                 )
                 Text("さわって かぞえてみよう")
-                    .font(PiyoTheme.captionFont)
+                    .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.textSoft)
             }
 
         case .numberRead(let value):
             Text("\(value)")
-                .font(PiyoTheme.giantFont)
+                .piyoFont(.giant)
                 .foregroundStyle(PiyoTheme.color(for: .number))
                 .minimumScaleFactor(0.4)
                 .lineLimit(1)
@@ -61,11 +65,11 @@ struct QuestionContentView: View {
         case .placeValue(let value, let place):
             VStack(spacing: 16) {
                 Text("\(value)")
-                    .font(PiyoTheme.childFont(size: 72, weight: .heavy))
+                    .piyoFont(size: 72, weight: .heavy)
                     .foregroundStyle(PiyoTheme.color(for: .number))
                 PlaceValueBlocksView(value: value, highlighted: place)
                 Text(place.childTitle)
-                    .font(PiyoTheme.bodyFont)
+                    .piyoFont(.body)
                     .foregroundStyle(PiyoTheme.primaryDeep)
             }
 
@@ -73,7 +77,7 @@ struct QuestionContentView: View {
             kanaContent(card: card, task: task)
 
         case .kanaWord(let card, let subject):
-            KanaWordIllustration(card: card, subject: subject, size: 140, showsWord: true)
+            KanaWordIllustration(card: card, subject: subject, size: art(140), showsWord: true)
 
         case .alphabetCard(let card, let task, let isUppercase):
             alphabetContent(card: card, task: task, isUppercase: isUppercase)
@@ -94,10 +98,10 @@ struct QuestionContentView: View {
             if model.answerMode == .voice {
                 VStack(spacing: 10) {
                     Text(card.character(for: subject))
-                        .font(PiyoTheme.giantFont)
+                        .piyoFont(.giant)
                         .foregroundStyle(PiyoTheme.color(for: subject))
                     Text("こえで よんでみよう")
-                        .font(PiyoTheme.captionFont)
+                        .piyoFont(.caption)
                         .foregroundStyle(PiyoTheme.textSoft)
                 }
             } else {
@@ -108,20 +112,20 @@ struct QuestionContentView: View {
                         Image(systemName: "speaker.wave.3.fill")
                             .font(.system(size: 54, weight: .bold))
                             .foregroundStyle(PiyoTheme.color(for: subject))
-                            .frame(width: 140, height: 140)
+                            .frame(width: art(140), height: art(140))
                             .background(Circle().fill(PiyoTheme.color(for: subject).opacity(0.15)))
                     }
                     .buttonStyle(.plain)
                     Text("おとを きいて えらぼう")
-                        .font(PiyoTheme.captionFont)
+                        .piyoFont(.caption)
                         .foregroundStyle(PiyoTheme.textSoft)
                 }
             }
         case .trace, .write:
             VStack(spacing: 10) {
-                KanaWordIllustration(card: card, subject: subject, size: 76, showsWord: true)
+                KanaWordIllustration(card: card, subject: subject, size: art(76), showsWord: true)
                 Text(card.character(for: subject))
-                    .font(PiyoTheme.childFont(size: 56, weight: .heavy))
+                    .piyoFont(size: 56, weight: .heavy)
                     .foregroundStyle(PiyoTheme.color(for: subject))
             }
         }
@@ -134,10 +138,10 @@ struct QuestionContentView: View {
             if model.answerMode == .voice {
                 VStack(spacing: 10) {
                     Text(card.character(isUppercase: isUppercase))
-                        .font(PiyoTheme.giantFont)
+                        .piyoFont(.giant)
                         .foregroundStyle(PiyoTheme.color(for: .alphabet))
                     Text("こえで よんでみよう")
-                        .font(PiyoTheme.captionFont)
+                        .piyoFont(.caption)
                         .foregroundStyle(PiyoTheme.textSoft)
                 }
             } else {
@@ -147,7 +151,7 @@ struct QuestionContentView: View {
                     Image(systemName: "speaker.wave.3.fill")
                         .font(.system(size: 54, weight: .bold))
                         .foregroundStyle(PiyoTheme.color(for: .alphabet))
-                        .frame(width: 140, height: 140)
+                        .frame(width: art(140), height: art(140))
                         .background(Circle().fill(PiyoTheme.color(for: .alphabet).opacity(0.15)))
                 }
                 .buttonStyle(.plain)
@@ -155,10 +159,10 @@ struct QuestionContentView: View {
         case .trace, .write:
             VStack(spacing: 8) {
                 Text(card.character(isUppercase: isUppercase))
-                    .font(PiyoTheme.childFont(size: 64, weight: .heavy))
+                    .piyoFont(size: 64, weight: .heavy)
                     .foregroundStyle(PiyoTheme.color(for: .alphabet))
                 Text(card.katakanaName)
-                    .font(PiyoTheme.captionFont)
+                    .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.textSoft)
             }
         }
@@ -169,18 +173,18 @@ struct QuestionContentView: View {
         switch task {
         case .speakWord:
             VStack(spacing: 10) {
-                EnglishWordIllustration(card: card, size: 150, showsText: false)
+                EnglishWordIllustration(card: card, size: art(150), showsText: false)
                 Text(card.japanese)
-                    .font(PiyoTheme.bodyFont)
+                    .piyoFont(.body)
                     .foregroundStyle(PiyoTheme.textSoft)
                 Text("えいごで いってみよう")
-                    .font(PiyoTheme.captionFont)
+                    .piyoFont(.caption)
                     .foregroundStyle(PiyoTheme.textSoft)
             }
         case .wordToPicture, .pictureToWord:
             VStack(spacing: 12) {
                 Text(card.english)
-                    .font(PiyoTheme.childFont(size: 52, weight: .heavy))
+                    .piyoFont(size: 52, weight: .heavy)
                     .foregroundStyle(PiyoTheme.color(for: .englishWord))
                 Button {
                     model.speakPrompt()
@@ -188,7 +192,7 @@ struct QuestionContentView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "speaker.wave.2.fill")
                         Text("もういちど きく")
-                            .font(PiyoTheme.captionFont)
+                            .piyoFont(.caption)
                     }
                     .foregroundStyle(PiyoTheme.textSoft)
                     .padding(.horizontal, 18)

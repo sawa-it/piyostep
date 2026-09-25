@@ -5,6 +5,7 @@ import PiyoCore
 struct CollectionView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.piyoLayout) private var layout
 
     @State private var selectedCategory: UnlockCategory = .character
 
@@ -12,11 +13,12 @@ struct CollectionView: View {
         UnlockCatalog.items(in: selectedCategory)
     }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14)
-    ]
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: CGFloat(layout.sized(14))),
+            count: layout.collectionColumns
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -26,7 +28,7 @@ struct CollectionView: View {
                 header
                 categoryPicker
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 14) {
+                    LazyVGrid(columns: columns, spacing: CGFloat(layout.sized(14))) {
                         ForEach(items) { item in
                             itemCell(item)
                         }
@@ -35,8 +37,8 @@ struct CollectionView: View {
                 }
                 goalFooter
             }
-            .padding(20)
-            .frame(maxWidth: 640)
+            .padding(CGFloat(layout.spacing))
+            .piyoContentWidth(layout)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.collection)
@@ -51,7 +53,7 @@ struct CollectionView: View {
             BackCircleButton { dismiss() }
             Spacer()
             Text("ずかん")
-                .font(PiyoTheme.titleFont)
+                .piyoFont(.title)
                 .foregroundStyle(PiyoTheme.text)
             Spacer()
             Color.clear.frame(width: 64, height: 64)
@@ -67,7 +69,7 @@ struct CollectionView: View {
                         environment.haptics.tap()
                     } label: {
                         Text(category.childTitle)
-                            .font(PiyoTheme.bodyFont)
+                            .piyoFont(.body)
                             .foregroundStyle(selectedCategory == category ? .white : PiyoTheme.textSoft)
                             .padding(.horizontal, 20)
                             .frame(height: 56)
@@ -100,14 +102,14 @@ struct CollectionView: View {
             }
 
             Text(unlocked ? item.name : "？？？")
-                .font(PiyoTheme.childFont(size: 13, weight: .semibold))
+                .piyoFont(size: 13, weight: .semibold)
                 .foregroundStyle(unlocked ? PiyoTheme.text : PiyoTheme.textSoft)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
 
             if !unlocked {
                 Text(item.condition.childDescription)
-                    .font(PiyoTheme.childFont(size: 11, weight: .medium))
+                    .piyoFont(size: 11, weight: .medium)
                     .foregroundStyle(PiyoTheme.textSoft)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -182,10 +184,10 @@ struct CollectionView: View {
                             .foregroundStyle(PiyoTheme.primary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("つぎの おたのしみ")
-                                .font(PiyoTheme.childFont(size: 13, weight: .semibold))
+                                .piyoFont(size: 13, weight: .semibold)
                                 .foregroundStyle(PiyoTheme.textSoft)
                             Text(goal.condition.childDescription)
-                                .font(PiyoTheme.bodyFont)
+                                .piyoFont(.body)
                                 .foregroundStyle(PiyoTheme.text)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)

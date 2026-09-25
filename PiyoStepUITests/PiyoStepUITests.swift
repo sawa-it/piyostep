@@ -61,10 +61,10 @@ final class PiyoStepUITests: XCTestCase {
         }
 
         XCTAssertTrue(
-            app.element(id: A11yID.result).waitUntilExists(),
+            app.element(id: A11yID.resultStars).waitUntilExists(),
             "チャレンジが結果画面まで到達しない / \(app.screenSummary())"
         )
-        XCTAssertTrue(app.element(id: A11yID.resultStars).exists)
+        XCTAssertTrue(app.element(id: A11yID.result).exists, "結果画面として名前が付いていない")
         app.tappable(A11yID.resultDone).waitAndTap()
         XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
     }
@@ -80,6 +80,48 @@ final class PiyoStepUITests: XCTestCase {
             "フィードバックが出ない"
         )
         XCTAssertTrue(app.continueAfterFeedback(), "次に進めない")
+    }
+
+    // MARK: - 画面の向きと組み替え
+
+    func testAppRunsInLandscape() {
+        let app = UITest.launch()
+        XCTAssertTrue(app.element(id: A11yID.home).waitUntilExists())
+
+        // 横向き固定なので、縦に回しても横のままであること。
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .landscapeLeft }
+
+        let frame = app.frame
+        XCTAssertGreaterThan(
+            frame.width, frame.height,
+            "横向きで動いていない（\(frame.width) x \(frame.height)）"
+        )
+    }
+
+    func testQuestionAndAnswerSitSideBySideInLandscape() {
+        let app = UITest.launch()
+        app.tappable("\(A11yID.homeSubject)clock").waitAndTap()
+        app.tappable("\(A11yID.subjectSkill)clockRead").waitAndTap()
+        XCTAssertTrue(app.element(id: A11yID.session).waitUntilExists())
+
+        let prompt = app.element(id: A11yID.sessionPrompt)
+        let firstChoice = app.element(id: "\(A11yID.sessionChoice)0")
+        XCTAssertTrue(prompt.waitUntilExists())
+        XCTAssertTrue(
+            firstChoice.waitUntilExists(),
+            "選択肢が出ない / \(app.screenSummary(prefix: "session."))"
+        )
+
+        // 横向きでは出題が左、回答が右。縦に積むと回答が画面の外に出る。
+        XCTAssertLessThan(
+            prompt.frame.midX, firstChoice.frame.midX,
+            "出題と回答が左右に分かれていない"
+        )
+        XCTAssertTrue(
+            firstChoice.isHittable,
+            "回答が画面内に収まっていない / \(app.screenSummary(prefix: "session."))"
+        )
     }
 
     // MARK: - 教科ごとのゲーム
@@ -120,7 +162,7 @@ final class PiyoStepUITests: XCTestCase {
         let digit = app.element(id: "\(A11yID.sessionNumberPadDigit)3")
         XCTAssertTrue(
             digit.waitForExistence(timeout: UITest.defaultTimeout),
-            "数字パッドが出ない / \(app.screenSummary())"
+            "数字パッドが出ない / \(app.screenSummary(prefix: "session."))"
         )
         digit.waitAndTap()
         app.tappable(A11yID.sessionNumberPadSubmit).waitAndTap()
@@ -260,7 +302,10 @@ final class PiyoStepUITests: XCTestCase {
 
         // 子どもの名前から作った候補をそのまま使う
         let suggestion = app.tappable(A11yID.settingsAppNameSuggestion)
-        XCTAssertTrue(suggestion.waitUntilExists(), "名前の候補が出ない / \(app.screenSummary())")
+        XCTAssertTrue(
+            suggestion.scrollUntilExists(),
+            "名前の候補が出ない / \(app.screenSummary(prefix: "settings."))"
+        )
         suggestion.waitAndTap()
 
         app.tappable(A11yID.parentClose).waitAndTap()
@@ -279,8 +324,14 @@ final class PiyoStepUITests: XCTestCase {
         app.tappable("設定").waitAndTap()
 
         let voiceAnswerToggle = app.switches[A11yID.settingsVoiceAnswer]
-        XCTAssertTrue(voiceAnswerToggle.waitUntilExists(), "設定にトグルが出ない / \(app.screenSummary())")
-        XCTAssertTrue(voiceAnswerToggle.scrollIntoView(), "トグルが画面外のまま / \(app.screenSummary())")
+        XCTAssertTrue(
+            voiceAnswerToggle.scrollUntilExists(),
+            "設定にトグルが出ない / \(app.screenSummary(prefix: "settings."))"
+        )
+        XCTAssertTrue(
+            voiceAnswerToggle.scrollIntoView(),
+            "トグルが画面外のまま / \(app.screenSummary(prefix: "settings."))"
+        )
         let before = voiceAnswerToggle.value as? String
 
         // Form の Toggle は行全体がひとつの要素になるので、中央ではなくスイッチ側（右端）を押す。

@@ -127,7 +127,8 @@ def payload_labels(raw: str) -> list[str | None]:
 
 
 def _label_of(piece: str) -> str | None:
-    piece = piece.strip()
+    # 引数の前に行コメントが挟まることがあるので落とす。
+    piece = re.sub(r"(?m)^[ \t]*//[^\n]*$", "", piece).strip()
     match = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\s*:", piece)
     return match.group(1) if match else None
 

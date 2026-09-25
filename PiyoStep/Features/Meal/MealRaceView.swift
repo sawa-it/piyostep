@@ -3,6 +3,7 @@ import PiyoCore
 
 /// ご飯タイマーの入れ物。準備 → 競争 → 結果 を 1 画面で切り替える。
 struct MealRaceContainerView: View {
+    @Environment(\.piyoLayout) private var layout
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
 
@@ -37,6 +38,7 @@ struct MealRaceContainerView: View {
 
 /// スタート前。保護者の設定内容を見せてから始める。
 struct MealSetupView: View {
+    @Environment(\.piyoLayout) private var layout
     @Environment(AppEnvironment.self) private var environment
     @Bindable var model: MealRaceViewModel
     var onClose: () -> Void
@@ -50,10 +52,10 @@ struct MealSetupView: View {
 
             Spacer(minLength: 0)
 
-            CharacterArtView(character: model.character, mood: .happy, size: 170)
+            CharacterArtView(character: model.character, mood: .happy, size: CGFloat(layout.artSized(170)))
 
             Text(model.character.raceIntroLine)
-                .font(PiyoTheme.headlineFont)
+                .piyoFont(.headline)
                 .foregroundStyle(PiyoTheme.text)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.6)
@@ -66,7 +68,7 @@ struct MealSetupView: View {
                             .font(.system(size: 28))
                             .foregroundStyle(PiyoTheme.success)
                         Text("\(model.targetMinutes)ふん")
-                            .font(PiyoTheme.headlineFont)
+                            .piyoFont(.headline)
                             .foregroundStyle(PiyoTheme.text)
                     }
                     Divider().frame(height: 48)
@@ -75,7 +77,7 @@ struct MealSetupView: View {
                             .font(.system(size: 28))
                             .foregroundStyle(PiyoTheme.success)
                         Text(model.character.favoriteFood)
-                            .font(PiyoTheme.bodyFont)
+                            .piyoFont(.body)
                             .foregroundStyle(PiyoTheme.text)
                     }
                 }
@@ -83,18 +85,18 @@ struct MealSetupView: View {
 
             Spacer(minLength: 0)
 
-            BigButton(color: PiyoTheme.success, minHeight: 120, action: { model.begin() }) {
+            BigButton(color: PiyoTheme.success, minHeight: CGFloat(layout.sized(116)), action: { model.begin() }) {
                 HStack(spacing: 12) {
                     Image(systemName: "play.fill")
                         .font(.system(size: 34, weight: .bold))
                     Text("スタート！")
-                        .font(PiyoTheme.titleFont)
+                        .piyoFont(.title)
                 }
             }
             .accessibilityIdentifier(A11yID.mealStart)
         }
-        .padding(24)
-        .frame(maxWidth: 560)
+        .padding(CGFloat(layout.sized(20)))
+        .piyoContentWidth(layout)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.mealSetup)
         .onAppear {
@@ -105,14 +107,16 @@ struct MealSetupView: View {
 
 /// 3・2・1 のカウントダウン。
 struct CountdownView: View {
+    @Environment(\.piyoLayout) private var layout
+
     let value: Int
     let character: CharacterDefinition
 
     var body: some View {
         VStack(spacing: 28) {
-            CharacterArtView(character: character, mood: .cheering, size: 160)
+            CharacterArtView(character: character, mood: .cheering, size: CGFloat(layout.artSized(160)))
             Text("\(value)")
-                .font(PiyoTheme.childFont(size: 140, weight: .heavy))
+                .piyoFont(size: 140, weight: .heavy)
                 .foregroundStyle(PiyoTheme.primaryDeep)
                 .transition(.scale.combined(with: .opacity))
                 .id(value)
@@ -124,6 +128,7 @@ struct CountdownView: View {
 /// 競争中。
 struct MealRaceView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.piyoLayout) private var layout
     @Bindable var model: MealRaceViewModel
     var onClose: () -> Void
 
@@ -156,17 +161,17 @@ struct MealRaceView: View {
 
             Spacer(minLength: 0)
 
-            BigButton(color: PiyoTheme.success, minHeight: 140, action: { model.finish() }) {
+            BigButton(color: PiyoTheme.success, minHeight: CGFloat(layout.sized(132)), action: { model.finish() }) {
                 HStack(spacing: 14) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 42, weight: .bold))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("たべおわった！")
-                            .font(PiyoTheme.titleFont)
+                            .piyoFont(.title)
                             .minimumScaleFactor(0.6)
                             .lineLimit(1)
                         Text("おさらが からっぽに なったら おしてね")
-                            .font(PiyoTheme.childFont(size: 13, weight: .semibold))
+                            .piyoFont(size: 13, weight: .semibold)
                             .opacity(0.9)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
@@ -177,7 +182,7 @@ struct MealRaceView: View {
             .accessibilityIdentifier(A11yID.mealFinish)
         }
         .padding(20)
-        .frame(maxWidth: 620)
+        .piyoContentWidth(layout)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.mealRace)
     }
@@ -199,7 +204,7 @@ struct MealRaceView: View {
                 Image(systemName: "timer")
                     .foregroundStyle(PiyoTheme.textSoft)
                 Text(model.remainingText)
-                    .font(PiyoTheme.headlineFont)
+                    .piyoFont(.headline)
                     .foregroundStyle(PiyoTheme.text)
                     .monospacedDigit()
             }
@@ -212,7 +217,7 @@ struct MealRaceView: View {
     private func plateColumn(title: String, fullness: Double, isChild: Bool) -> some View {
         VStack(spacing: 10) {
             Text(title)
-                .font(PiyoTheme.bodyFont)
+                .piyoFont(.body)
                 .foregroundStyle(PiyoTheme.textSoft)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -222,9 +227,9 @@ struct MealRaceView: View {
                     model.takeBite()
                 } label: {
                     VStack(spacing: 6) {
-                        PlateView(fullness: fullness, size: 140, foodName: "ごはん")
+                        PlateView(fullness: fullness, size: CGFloat(layout.artSized(140)), foodName: "ごはん")
                         Text("もぐもぐ！")
-                            .font(PiyoTheme.captionFont)
+                            .piyoFont(.caption)
                             .foregroundStyle(PiyoTheme.primaryDeep)
                     }
                 }
@@ -232,10 +237,10 @@ struct MealRaceView: View {
                 .accessibilityIdentifier(A11yID.mealBite)
             } else {
                 VStack(spacing: 6) {
-                    CharacterArtView(character: model.character, mood: model.characterMood, size: 86)
+                    CharacterArtView(character: model.character, mood: model.characterMood, size: CGFloat(layout.artSized(86)))
                     PlateView(
                         fullness: fullness,
-                        size: 120,
+                        size: CGFloat(layout.artSized(120)),
                         foodName: model.character.favoriteFood
                     )
                 }
@@ -249,7 +254,7 @@ struct MealRaceView: View {
             Image(systemName: "bubble.left.fill")
                 .foregroundStyle(PiyoTheme.cheer)
             Text(model.characterMessage)
-                .font(PiyoTheme.bodyFont)
+                .piyoFont(.body)
                 .foregroundStyle(PiyoTheme.text)
                 .minimumScaleFactor(0.6)
                 .lineLimit(2)
@@ -265,6 +270,7 @@ struct MealRaceView: View {
 
 /// 結果。どちらが先でも、必ず前向きな表現にする。
 struct MealResultView: View {
+    @Environment(\.piyoLayout) private var layout
     @Environment(AppEnvironment.self) private var environment
     @Bindable var model: MealRaceViewModel
     var onDone: () -> Void
@@ -274,17 +280,17 @@ struct MealResultView: View {
             Spacer(minLength: 0)
 
             HStack(spacing: -16) {
-                CharacterArtView(character: model.character, mood: .cheering, size: 140)
-                CharacterArtView(character: environment.buddyCharacter, mood: .happy, size: 120)
+                CharacterArtView(character: model.character, mood: .cheering, size: CGFloat(layout.artSized(140)))
+                CharacterArtView(character: environment.buddyCharacter, mood: .happy, size: CGFloat(layout.artSized(120)))
             }
 
             if let result = model.result {
                 Text(result.headline)
-                    .font(PiyoTheme.childFont(size: 44, weight: .heavy))
+                    .piyoFont(size: 44, weight: .heavy)
                     .foregroundStyle(PiyoTheme.primaryDeep)
 
                 Text(result.subline)
-                    .font(PiyoTheme.headlineFont)
+                    .piyoFont(.headline)
                     .foregroundStyle(PiyoTheme.text)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.6)
@@ -294,7 +300,7 @@ struct MealResultView: View {
 
                 if !result.childFinishedFirst {
                     Text(model.character.watchingLine)
-                        .font(PiyoTheme.bodyFont)
+                        .piyoFont(.body)
                         .foregroundStyle(PiyoTheme.textSoft)
                 }
             }
@@ -305,13 +311,13 @@ struct MealResultView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "house.fill")
                     Text("ホームへ")
-                        .font(PiyoTheme.headlineFont)
+                        .piyoFont(.headline)
                 }
             }
             .accessibilityIdentifier(A11yID.mealResultDone)
         }
-        .padding(24)
-        .frame(maxWidth: 560)
+        .padding(CGFloat(layout.sized(20)))
+        .piyoContentWidth(layout)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11yID.mealResult)
         .overlay {
