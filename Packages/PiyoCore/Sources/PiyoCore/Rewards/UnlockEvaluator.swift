@@ -47,8 +47,9 @@ public struct UnlockEvaluator {
     public func nextGoal(progress: UnlockProgress, unlocked: Set<String>) -> UnlockableItem? {
         let locked = catalog.filter { !unlocked.contains($0.id) }
         return locked.min { lhs, rhs in
-            remainingEffort(for: lhs.condition, progress: progress)
-                < remainingEffort(for: rhs.condition, progress: progress)
+            let left = remainingEffort(for: lhs.condition, progress: progress)
+            let right = remainingEffort(for: rhs.condition, progress: progress)
+            return left < right
         }
     }
 

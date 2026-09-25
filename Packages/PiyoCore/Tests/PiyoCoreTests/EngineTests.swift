@@ -316,14 +316,14 @@ final class DailyChallengeBuilderTests: XCTestCase {
         strong.ewma = 1.0
         strong.lastPracticedAt = Fixture.referenceDate
 
-        var weak = MasterySnapshot(skill: .numberCount, level: .level1)
-        weak.attempts = 30
-        weak.correctCount = 5
-        weak.ewma = 0.15
-        weak.lastPracticedAt = Fixture.referenceDate
+        var weakSkill = MasterySnapshot(skill: .numberCount, level: .level1)
+        weakSkill.attempts = 30
+        weakSkill.correctCount = 5
+        weakSkill.ewma = 0.15
+        weakSkill.lastPracticedAt = Fixture.referenceDate
 
         let strongWeight = builder.weight(for: .hiraganaRead, snapshot: strong, now: Fixture.referenceDate)
-        let weakWeight = builder.weight(for: .numberCount, snapshot: weak, now: Fixture.referenceDate)
+        let weakWeight = builder.weight(for: .numberCount, snapshot: weakSkill, now: Fixture.referenceDate)
         XCTAssertGreaterThan(weakWeight, strongWeight)
     }
 

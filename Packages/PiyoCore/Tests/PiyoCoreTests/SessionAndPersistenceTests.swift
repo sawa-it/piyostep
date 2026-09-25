@@ -363,11 +363,11 @@ final class ProgressAggregatorTests: XCTestCase {
         strong.ewma = 0.95
         strong.lastPracticedAt = now
 
-        var weak = MasterySnapshot(skill: .clockRead, level: .level1)
-        weak.attempts = 20
-        weak.correctCount = 4
-        weak.ewma = 0.2
-        weak.lastPracticedAt = now
+        var weakSkill = MasterySnapshot(skill: .clockRead, level: .level1)
+        weakSkill.attempts = 20
+        weakSkill.correctCount = 4
+        weakSkill.ewma = 0.2
+        weakSkill.lastPracticedAt = now
 
         let attempts =
             (0 ..< 20).map { index in
@@ -389,7 +389,7 @@ final class ProgressAggregatorTests: XCTestCase {
             attempts: attempts,
             sessions: [],
             mealSessions: [],
-            snapshots: [.hiraganaRead: strong, .clockRead: weak],
+            snapshots: [.hiraganaRead: strong, .clockRead: weakSkill],
             now: now
         )
 

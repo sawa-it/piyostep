@@ -104,11 +104,17 @@ cd Packages/PiyoCore && swift test
 ### Swift ツールチェーンが無い環境での確認
 
 ```bash
+pip install tree_sitter tree_sitter_swift   # 構文解析に使うもののみ
+
+python3 Tools/swift_parse_check.py Packages PiyoStep PiyoStepTests PiyoStepUITests
+python3 Tools/switch_exhaustive_check.py Packages PiyoStep PiyoStepTests PiyoStepUITests
 python3 Tools/swift_sanity.py Packages PiyoStep PiyoStepTests PiyoStepUITests
 python3 Tools/symbol_check.py
 python3 Tools/view_init_check.py
 ```
 
+- `swift_parse_check.py`: tree-sitter の Swift 文法で全ファイルを構文解析
+- `switch_exhaustive_check.py`: `default` の無い `switch` が列挙を網羅しているか
 - `swift_sanity.py`: 括弧・文字列・ブロックコメントの対応、`Set<Character>` リテラル、
   トップレベル型名の重複
 - `symbol_check.py`: `A11yID` / `PiyoTheme` の参照、PiyoCore の公開範囲、
@@ -116,8 +122,8 @@ python3 Tools/view_init_check.py
 - `view_init_check.py`: SwiftUI View のメンバーワイズ初期化子と呼び出し側の
   ラベル・順序・必須引数の整合
 
-コンパイラの代わりにはなりませんが、ツールチェーンが無い環境でも
-機械的に検出できる誤りを潰せます。
+型検査まではできないため Xcode でのビルドの代わりにはなりませんが、
+ツールチェーンが無い環境でも機械的に検出できる誤りを潰せます。
 
 ---
 
