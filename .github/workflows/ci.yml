@@ -16,7 +16,7 @@ jobs:
     name: 静的チェック
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -40,23 +40,23 @@ jobs:
     name: PiyoCore の Unit Test
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Swift のバージョン
         run: swift --version
       - name: swift test
-        run: swift test --package-path Packages/PiyoCore
+        run: ./Scripts/ci_step.sh "swift test" swift test --package-path Packages/PiyoCore
 
   # アプリ本体のビルドと、アプリ層 Unit Test / UI Test。
   app:
     name: アプリのビルドと Unit / UI Test
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Xcode のバージョン
         run: xcodebuild -version
       - name: ビルド
-        run: ./Scripts/run_tests.sh build
+        run: ./Scripts/ci_step.sh "build" ./Scripts/run_tests.sh build
       - name: Unit Test
-        run: ./Scripts/run_tests.sh unit
+        run: ./Scripts/ci_step.sh "unit" ./Scripts/run_tests.sh unit
       - name: UI Test
-        run: ./Scripts/run_tests.sh ui
+        run: ./Scripts/ci_step.sh "ui" ./Scripts/run_tests.sh ui
