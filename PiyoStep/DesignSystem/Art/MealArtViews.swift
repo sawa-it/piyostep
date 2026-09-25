@@ -117,7 +117,7 @@ struct RaceTrackView: View {
         color: Color,
         label: String,
         identifier: String,
-        @ViewBuilder marker: () -> AnyView
+        @ViewBuilder marker: @escaping () -> AnyView
     ) -> some View {
         let clamped = min(max(progress, 0), 1)
         return VStack(alignment: .leading, spacing: 4) {

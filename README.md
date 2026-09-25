@@ -106,10 +106,18 @@ cd Packages/PiyoCore && swift test
 ```bash
 python3 Tools/swift_sanity.py Packages PiyoStep PiyoStepTests PiyoStepUITests
 python3 Tools/symbol_check.py
+python3 Tools/view_init_check.py
 ```
 
-括弧・文字列の対応、`Set<Character>` リテラル、アクセシビリティ識別子の参照、
-`Skill` / `Subject` の網羅的 switch などを機械的に確認します。
+- `swift_sanity.py`: 括弧・文字列・ブロックコメントの対応、`Set<Character>` リテラル、
+  トップレベル型名の重複
+- `symbol_check.py`: `A11yID` / `PiyoTheme` の参照、PiyoCore の公開範囲、
+  `Skill` / `Subject` の網羅的 switch
+- `view_init_check.py`: SwiftUI View のメンバーワイズ初期化子と呼び出し側の
+  ラベル・順序・必須引数の整合
+
+コンパイラの代わりにはなりませんが、ツールチェーンが無い環境でも
+機械的に検出できる誤りを潰せます。
 
 ---
 
