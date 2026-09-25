@@ -30,9 +30,11 @@ enum TestEnvironment {
         settings: AppSettings = .default,
         voiceScript: [String] = [],
         historyStore: LearningHistoryStoring = InMemoryLearningHistoryStore(),
-        purchaseService: MockPurchaseService = MockPurchaseService(),
-        adPresenter: MockAdPresenter = MockAdPresenter(allow: true),
-        haptics: NoopHapticsService = NoopHapticsService(),
+        // @MainActor の型は既定値にできない（既定値の式は nonisolated として
+        // 検査されるため）。nil を既定にして、本体で生成する。
+        purchaseService: MockPurchaseService? = nil,
+        adPresenter: MockAdPresenter? = nil,
+        haptics: NoopHapticsService? = nil,
         synthesizer: MockSpeechSynthesizer = MockSpeechSynthesizer(),
         soundPlayer: MockSoundPlayer = MockSoundPlayer(),
         recognizer: SpeechRecognizing? = nil,
@@ -50,9 +52,9 @@ enum TestEnvironment {
             speechRecognizer: recognizer ?? ScriptedSpeechRecognizer(transcripts: voiceScript),
             speechSynthesizer: synthesizer,
             soundPlayer: soundPlayer,
-            haptics: haptics,
-            purchaseService: purchaseService,
-            adPresenter: adPresenter,
+            haptics: haptics ?? NoopHapticsService(),
+            purchaseService: purchaseService ?? MockPurchaseService(),
+            adPresenter: adPresenter ?? MockAdPresenter(allow: true),
             random: SeededRandomSource(seed: seed),
             clock: SystemClock(),
             launchArguments: launchArguments ?? makeLaunchArguments()
