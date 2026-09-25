@@ -284,13 +284,14 @@ final class KanaAndEnglishGeneratorTests: XCTestCase {
             if question.isVoiceFirst {
                 sawReadingAloud = true
                 XCTAssertEqual(question.answerModes, [.voice, .choice])
-                XCTAssertFalse(question.prompt.spokenText.contains(card.hiragana), "文字を読ませる問題で答えを言ってはいけない")
+                // 「こ」「の」のように問いかけ文に含まれる文字もあるので、答えとして読む「 」付きで見る。
+                XCTAssertEqual(question.prompt.spokenText, "この もじは なんて よむ かな？", "文字を読ませる問題で答えを言ってはいけない")
                 XCTAssertEqual(question.prompt.spokenTextForTap, "「\(card.hiragana)」は どれ かな？")
                 XCTAssertEqual(question.tapMode, .choice)
             } else {
                 sawListenAndPick = true
                 XCTAssertEqual(question.answerModes, [.choice, .voice])
-                XCTAssertTrue(question.prompt.spokenText.contains(card.hiragana))
+                XCTAssertTrue(question.prompt.spokenText.contains("「\(card.hiragana)」"))
                 XCTAssertNil(question.prompt.tapFallbackSpokenText)
             }
         }
